@@ -1,0 +1,5 @@
+services:
+  new-api:
+    environment:
+      # 宝塔 HTTPS 反代后，登录会话必须使用 Secure Cookie。
+      SESSION_COOKIE_SECURE: "true"

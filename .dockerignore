@@ -1,0 +1,7 @@
+node_modules
+dist
+new-api-upstream
+.git
+.env
+*.log
+artifacts

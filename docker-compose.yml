@@ -1,0 +1,35 @@
+services:
+  new-api:
+    build:
+      context: ./new-api-upstream
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - new_api_data:/data
+    environment:
+      TZ: Asia/Shanghai
+      DEFAULT_LANGUAGE: zh-CN
+      SESSION_COOKIE_SECURE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -q '\"success\":true'"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  relay-console:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_NEW_API_CONSOLE_URL: ${VITE_NEW_API_CONSOLE_URL:-}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8088:80"
+    depends_on:
+      new-api:
+        condition: service_healthy
+
+volumes:
+  new_api_data:
+

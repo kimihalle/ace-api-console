@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+artifacts/
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+new-api-upstream/.git-upstream-history/

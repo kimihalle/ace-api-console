@@ -1,0 +1,14 @@
+.api-endpoint { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 12px; min-width: 0; max-width: 100%; }
+.api-endpoint-label { color: #757d88; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.api-endpoint-value { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; padding: 5px 6px 5px 12px; border: 1px solid #e7e6e2; border-radius: 8px; background: #fff; }
+.api-endpoint-address { min-width: 0; color: #525c69; font: 11px/1.6 'DM Mono', ui-monospace, monospace; overflow-wrap: anywhere; user-select: all; }
+.api-endpoint-copy { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-shrink: 0; min-height: 28px; padding: 4px 9px; border: 0; border-radius: 5px; background: #fff3ec; color: var(--accent-deep); font: inherit; font-size: 11px; cursor: pointer; }
+.api-endpoint-copy:hover:not(:disabled) { background: #fce8dc; }
+.api-endpoint-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.api-endpoint-copy:disabled { cursor: wait; opacity: .65; }
+.model-marketplace > .api-endpoint { margin-bottom: 14px; }
+@media (max-width: 480px) {
+  .api-endpoint { gap: 7px; }
+  .api-endpoint-label { flex-basis: 100%; font-size: 11px; }
+  .api-endpoint-value { gap: 8px; padding-left: 10px; }
+}
