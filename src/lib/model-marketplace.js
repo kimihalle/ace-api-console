@@ -44,16 +44,16 @@ export function marketGroupVendors(models, group) {
 export function marketPriceDisplay(model, group, status) {
   const price = model.pricing;
   const ratio = configuredGroupRatio(model.groupRatios, group);
-  const empty = { unit: '每百万 Tokens', items: [['输入', '—'], ['输出', '—'], ['缓存创建', '—'], ['缓存读取', '—']] };
+  const empty = { unit: '本站计费 · 每百万 Tokens', items: [['输入', '—'], ['输出', '—'], ['缓存创建', '—'], ['缓存读取', '—']] };
   if (!price || ratio === null || !modelInGroup(model, group)) return empty;
-  if (price.billing_mode && price.billing_mode !== 'ratio') return { mode: '动态计费', unit: '按实际用量结算', items: [] };
+  if (price.billing_mode && price.billing_mode !== 'ratio') return { mode: '动态计费', unit: '按本站配置结算', items: [] };
   const type = status?.quota_display_type || (status?.display_in_currency === false ? 'TOKENS' : 'USD');
   const exchange = finiteNumber(type === 'CNY' ? status?.usd_exchange_rate : type === 'CUSTOM' ? status?.custom_currency_exchange_rate : 1);
   const symbol = type === 'CNY' ? '¥' : type === 'CUSTOM' ? status?.custom_currency_symbol || '¤' : '$';
   const money = (value) => value === null || !Number.isFinite(value) || value < 0 ? '—' : formatMoney(value * (exchange > 0 ? exchange : 1), symbol);
   if (Number(price.quota_type) === 1) {
     const fixed = finiteNumber(price.model_price);
-    return { unit: '每次请求', items: [['请求价格', money(fixed === null ? null : fixed * ratio)]] };
+    return { unit: '本站计费 · 每次请求', items: [['请求价格', money(fixed === null ? null : fixed * ratio)]] };
   }
   const inputRatio = finiteNumber(price.model_ratio);
   const input = inputRatio === null || inputRatio < 0 ? null : inputRatio * 2 * ratio;

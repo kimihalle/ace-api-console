@@ -35,7 +35,9 @@ test('market filters combine configured endpoints, vendors, group availability a
 });
 
 test('four token prices follow upstream ratios, including all-group models and explicit zero', () => {
-  assert.deepEqual(marketPriceDisplay(model, 'discounted', {}).items, [['输入', '$2.50'], ['输出', '$12.50'], ['缓存创建', '$3.125'], ['缓存读取', '$0.25']]);
+  const display = marketPriceDisplay(model, 'discounted', {});
+  assert.equal(display.unit, '本站计费 · 每百万 Tokens');
+  assert.deepEqual(display.items, [['输入', '$2.50'], ['输出', '$12.50'], ['缓存创建', '$3.125'], ['缓存读取', '$0.25']]);
   assert.deepEqual(marketPriceDisplay(model, 'free', {}).items.map((item) => item[1]), Array(4).fill('$0.00'));
   assert.equal(marketPriceDisplay({ ...model, pricing: { ...model.pricing, cache_ratio: 0, create_cache_ratio: null } }, 'basic', {}).items[2][1], '—');
   assert.equal(marketPriceDisplay({ ...model, pricing: { ...model.pricing, cache_ratio: 0 } }, 'basic', {}).items[3][1], '$0.00');
@@ -49,6 +51,8 @@ test('missing prices or ratios are never silently presented as free; dynamic mod
   assert.equal(marketPriceDisplay({ ...model, pricing: { quota_type: 1 } }, 'basic', {}).items[0][1], '—');
   assert.equal(marketPriceDisplay({ ...model, pricing: { ...model.pricing, quota_type: 1, model_price: 0.2 } }, 'discounted', {}).items[0][1], '$0.10');
   assert.equal(marketPriceDisplay({ ...model, pricing: { ...model.pricing, billing_mode: 'expression', quota_type: 1, model_price: 0 } }, 'basic', {}).mode, '动态计费');
+  assert.equal(marketPriceDisplay({ ...model, pricing: { ...model.pricing, quota_type: 1, model_price: 0.2 } }, 'discounted', {}).unit, '本站计费 · 每次请求');
+  assert.equal(marketPriceDisplay({ ...model, pricing: { ...model.pricing, billing_mode: 'expression' } }, 'discounted', {}).unit, '按本站配置结算');
   assert.equal(estimatedGroupCredit(50000000, 0.5, { quota_per_unit: 500000 }), '$200.00');
   assert.equal(estimatedGroupCredit(50000000, 0, {}), '不扣额度');
   assert.equal(estimatedGroupCredit(null, 1, {}), '—');
