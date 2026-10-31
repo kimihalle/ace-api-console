@@ -30,6 +30,7 @@ export default function ModelMarketplace({ models, groups, catalog, quota, userG
     || groupOptions[0];
   const selectedGroup = selected?.value || '';
   const ratio = configuredGroupRatio(catalog.group_ratio, selectedGroup);
+  const ratioTone = Math.max(0, groupOptions.findIndex((item) => item.value === selectedGroup)) % 6;
   const endpoints = useMemo(() => [...new Set(models.flatMap((model) => model.pricing?.supported_endpoint_types || []))], [models]);
   const vendors = useMemo(() => [...new Map(models.map((model) => [model.vendor, { name: model.vendor, icon: model.vendorIcon }])).values()], [models]);
   const routeVendors = useMemo(() => new Map(groups.map((item) => [item.value, marketGroupVendors(models, item.value)])), [models, groups]);
@@ -95,20 +96,20 @@ export default function ModelMarketplace({ models, groups, catalog, quota, userG
 
     {loading ? <div className="mp-empty" role="status">{t("正在加载模型目录…")}</div> : error ? <div className="mp-empty" role="alert"><SlidersHorizontal size={25} /><strong>{t("模型目录暂时无法加载")}</strong><span>{t("请稍后刷新重试")}</span></div> : !groupOptions.length ? <div className="mp-empty"><SlidersHorizontal size={25} /><strong>{t("暂无可用分组")}</strong></div> : <div className="mp-layout">
       <aside className="mp-routes" aria-label={t("线路分组")}><div className="mp-routes-heading"><h2>{t("线路分组")}</h2><span>{groupOptions.length}</span></div><div className="mp-route-list">
-        {groupOptions.map((item) => {
+        {groupOptions.map((item, index) => {
           const count = filterMarketModels(routeModels, { group: item.value }).length;
           const groupRatio = configuredGroupRatio(catalog.group_ratio, item.value);
           const brands = routeVendors.get(item.value) || [];
           const brandLabel = brands.length ? t("厂商：{v0}", { v0: brands.map((brand) => brand.name).join('、') }) : t("暂无可用模型");
           return <button key={item.value} className={`mp-route ${selectedGroup === item.value ? 'selected' : ''}`} aria-pressed={selectedGroup === item.value} onClick={() => setGroup(item.value)}>
-            <span className="mp-route-name"><span className="mp-route-brands" role="img" aria-label={brandLabel} title={brandLabel}>{brands.length ? brands.slice(0, 3).map((brand) => <span key={`${brand.name}-${brand.icon}`} className="mp-route-brand" aria-hidden="true"><VendorIcon name={brand.icon} fallback={brand.name.slice(0, 1)} size={15} /></span>) : <span className="mp-route-brand" aria-hidden="true"><Layers3 size={15} /></span>}</span><strong title={item.label}>{item.label}</strong>{groupRatio !== null && <span className="mp-ratio mp-route-ratio" aria-label={t('倍率 {value}', { value: groupRatio })}><small>{t('倍率')}</small>×{groupRatio}</span>}</span>
+            <span className="mp-route-name"><span className="mp-route-brands" role="img" aria-label={brandLabel} title={brandLabel}>{brands.length ? brands.slice(0, 3).map((brand) => <span key={`${brand.name}-${brand.icon}`} className="mp-route-brand" aria-hidden="true"><VendorIcon name={brand.icon} fallback={brand.name.slice(0, 1)} size={15} /></span>) : <span className="mp-route-brand" aria-hidden="true"><Layers3 size={15} /></span>}</span><strong title={item.label}>{item.label}</strong>{groupRatio !== null && <span className={`mp-ratio mp-ratio-tone-${index % 6}`} aria-label={t('倍率 {value}', { value: groupRatio })}>×{groupRatio}</span>}</span>
             <span className="mp-route-meta"><span>{t("{count} 个模型", { count })}</span>{selectedGroup === item.value && <Check size={13} />}</span>
           </button>;
         })}
       </div></aside>
 
       <div className="mp-catalog">
-        <header className="mp-route-detail"><div className="mp-detail-title"><h2>{selected.label}</h2>{ratio !== null && <span className="mp-ratio">×{ratio}</span>}<span className="mp-detail-count">{t("{count} 个模型", { count: filterMarketModels(models, { group: selectedGroup }).length })}</span></div>
+        <header className="mp-route-detail"><div className="mp-detail-title"><h2>{selected.label}</h2>{ratio !== null && <span className={`mp-ratio mp-ratio-tone-${ratioTone}`} aria-label={t('倍率 {value}', { value: ratio })}>×{ratio}</span>}<span className="mp-detail-count">{t("{count} 个模型", { count: filterMarketModels(models, { group: selectedGroup }).length })}</span></div>
           <div className="mp-credit"><span>{t("预计可用额度")}</span><strong>{estimatedGroupCredit(quota, ratio, status)}</strong><span className="mp-credit-balance">{t("余额 ")}{formatQuotaDisplay(quota, status)}{ratio !== null && ratio > 0 ? t(" / {v0} 倍率", { v0: ratio }) : ''}</span></div>
           <ModelHealth model={selected.label} metric={currentMonitor.data?.summary ? { ...currentMonitor.data.summary, recent_success_series: currentMonitor.data.success_series || [] } : null} scope={t("当前线路分组")} metrics={currentMonitor.data} loading={currentMonitor.loading} error={currentMonitor.error} />
         </header>

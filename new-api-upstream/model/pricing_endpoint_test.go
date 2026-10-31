@@ -7,6 +7,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,6 +77,43 @@ func pricingEndpointTypesFromPricing(pricings []Pricing) map[string][]constant.E
 		byModel[pricing.ModelName] = pricing.SupportedEndpointTypes
 	}
 	return byModel
+}
+
+func TestPricingPublishesEffectiveCacheRatios(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	savedRead := ratio_setting.CacheRatio2JSONString()
+	savedWrite := ratio_setting.CreateCacheRatio2JSONString()
+	savedFixed := ratio_setting.ModelPrice2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateCacheRatioByJSONString(savedRead))
+		require.NoError(t, ratio_setting.UpdateCreateCacheRatioByJSONString(savedWrite))
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedFixed))
+	})
+	require.NoError(t, ratio_setting.UpdateCacheRatioByJSONString(`{"cache-explicit":0.1,"cache-free":0}`))
+	require.NoError(t, ratio_setting.UpdateCreateCacheRatioByJSONString(`{"cache-explicit":1.5,"cache-free":0}`))
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"cache-fixed-request":0.2}`))
+	insertPricingEndpointChannel(t, 801, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	for _, name := range []string{"cache-fallback", "cache-explicit", "cache-free", "cache-fixed-request"} {
+		insertPricingEndpointAbility(t, 801, name)
+	}
+	InitChannelCache()
+	prices := pricingByModel(GetPricing())
+	for _, name := range []string{"cache-fallback", "cache-explicit", "cache-free"} {
+		price, found := prices[name]
+		require.True(t, found)
+		require.NotNil(t, price.CacheRatio)
+		require.NotNil(t, price.CreateCacheRatio)
+		read, _ := ratio_setting.GetCacheRatio(name)
+		write, _ := ratio_setting.GetCreateCacheRatio(name)
+		assert.Equal(t, read, *price.CacheRatio, "published cache price must match relay billing for %s", name)
+		assert.Equal(t, write, *price.CreateCacheRatio, "published cache creation price must match relay billing for %s", name)
+	}
+	assert.Nil(t, prices["cache-fixed-request"].CacheRatio, "per-request pricing must not invent per-token cache prices")
+	assert.Nil(t, prices["cache-fixed-request"].CreateCacheRatio)
+	encoded, err := common.Marshal(prices["cache-free"])
+	require.NoError(t, err)
+	assert.Contains(t, string(encoded), `"cache_ratio":0`, "explicit zero prices must survive JSON serialization")
+	assert.Contains(t, string(encoded), `"create_cache_ratio":0`)
 }
 
 func TestPricingAdvancedCustomUsesConfiguredEndpointTypes(t *testing.T) {

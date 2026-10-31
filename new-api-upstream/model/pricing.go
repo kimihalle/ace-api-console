@@ -353,10 +353,13 @@ func updatePricing() {
 			pricing.CompletionRatio = ratio_setting.GetCompletionRatio(model)
 			pricing.QuotaType = 0
 		}
-		if cacheRatio, ok := ratio_setting.GetCacheRatio(model); ok {
+		// Ratio billing uses these fallbacks even without an explicit model
+		// override. Expose the effective values, matching ModelPriceHelper,
+		// rather than advertising missing cache prices for billed usage.
+		if cacheRatio, ok := ratio_setting.GetCacheRatio(model); ok || pricing.QuotaType == 0 {
 			pricing.CacheRatio = &cacheRatio
 		}
-		if createCacheRatio, ok := ratio_setting.GetCreateCacheRatio(model); ok {
+		if createCacheRatio, ok := ratio_setting.GetCreateCacheRatio(model); ok || pricing.QuotaType == 0 {
 			pricing.CreateCacheRatio = &createCacheRatio
 		}
 		if imageRatio, ok := ratio_setting.GetImageRatio(model); ok {
