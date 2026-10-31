@@ -2,7 +2,7 @@
 
 当前项目采用 **React/Vite 客户前台 + 本仓库修改后的 New API 后端 + Docker Compose**。必须同时部署本仓库的两个服务；直接换用官方 New API 镜像会缺少本项目增加的利润、商品交付、鹈鹕测智等代码。
 
-仓库：<https://github.com/kimihalle/ace-api-console>（当前公开，可直接通过 HTTPS 拉取）。本文适用于一台 Linux 服务器、宝塔 Nginx、单实例 SQLite。首次构建需要访问 GitHub、Docker 镜像源、npm、Bun 和 Go 模块源。
+仓库：<https://github.com/kimihalle/ace-api-console>（当前公开，可直接通过 HTTPS 拉取）。本文默认使用单机 SQLite；要连接宝塔已有的 MySQL，先按 [MySQL 部署步骤](DEPLOY-MYSQL.md) 配置。首次构建需要访问 GitHub、Docker 镜像源、npm、Bun 和 Go 模块源。
 
 **先决定是全新安装还是迁移已有数据。GitHub 只保存程序，不包含你本机的账号、余额、渠道密钥、支付配置、订单和调用记录。已有数据迁移见第 7 节。不要运行 `docker compose down -v` 或清理本项目的数据卷。**
 
@@ -115,6 +115,8 @@ printf '\nSITE_URL=%s\nSESSION_SECRET=%s\nCRYPTO_SECRET=%s\n' \
 | `VITE_NEW_API_BASE_URL` | 留空，同源访问 |
 | `VITE_NEW_API_CONSOLE_URL` | 留空，同站点后台 |
 | `NEW_API_TARGET` | 本地 Vite 开发代理配置，Docker 生产反代不使用它 |
+| `SQL_DSN` | 留空使用 SQLite；连接已有 MySQL 时填写连接串，见 [MySQL 文档](DEPLOY-MYSQL.md) |
+| `LOG_SQL_DSN` | 留空表示日志跟随主数据库；非空时使用独立日志数据库 |
 
 根目录 `.env` 中的变量必须被 Compose 显式引用才会进入容器。SMTP、渠道、计费和支付等业务配置主要在后台填写并保存在数据库中。
 
@@ -188,7 +190,7 @@ location / {
 
 ## 7. 把现在本机的数据迁移上去
 
-**全新站点跳过本节。要保留现在的账号、余额和配置，必须迁移 `/data`，只拉 GitHub 不够。**
+**全新站点跳过本节。本节仅适用于 SQLite → SQLite 迁移；切换到 MySQL 不会读取旧 SQLite 文件，需要另做数据库迁移。要保留现在的账号、余额和配置，必须迁移数据，只拉 GitHub 不够。**
 
 本机使用 Docker Desktop 时，先启动 Docker。下面在项目目录的 **PowerShell** 执行；会短暂停止本机后端，复制后自动恢复：
 
@@ -251,6 +253,8 @@ bash scripts/backup.sh
 可以在宝塔计划任务中定时执行上面的命令；先手动成功一次。备份不是压缩包存在就算完成，应至少恢复到隔离环境验证一次。
 
 ### 拉取更新
+
+以下命令中的 `backup.sh` 仅适用于 SQLite。MySQL 用户应先在宝塔备份实际业务库，再按 [MySQL 更新步骤](DEPLOY-MYSQL.md#6-mysql-的备份和更新) 操作。
 
 ```bash
 cd /opt/ace-api

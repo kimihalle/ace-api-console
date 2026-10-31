@@ -1,5 +1,8 @@
 services:
   new-api:
+    # Allow the Linux container to reach MySQL installed by Baota on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       SESSION_COOKIE_SECURE: "true"
       SESSION_COOKIE_TRUSTED_URL: ${SITE_URL:?Set SITE_URL to your public HTTPS origin in .env}

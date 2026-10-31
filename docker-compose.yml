@@ -10,6 +10,9 @@ services:
       TZ: Asia/Shanghai
       DEFAULT_LANGUAGE: zh-CN
       SESSION_COOKIE_SECURE: "false"
+      # Empty SQL_DSN retains the existing SQLite deployment.
+      SQL_DSN: ${SQL_DSN:-}
+      LOG_SQL_DSN: ${LOG_SQL_DSN:-}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -q '\"success\":true'"]
       interval: 15s

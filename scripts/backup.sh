@@ -7,12 +7,27 @@ cd "$project_dir"
 backup_root=${1:-"$project_dir/backups"}
 mkdir -p -- "$backup_root"
 backup_root=$(cd -- "$backup_root" && pwd)
-backup_dir=$(mktemp -d "$backup_root/$(date +%Y%m%d-%H%M%S)-XXXXXX")
 container_id=$(docker compose -f docker-compose.yml ps -a -q new-api)
 if [[ -z "$container_id" ]]; then
   echo 'No new-api container found. Run this script in the existing deployment.' >&2
   exit 1
 fi
+# Inspect the running configuration, not .env: it may have changed since startup.
+# Never print these environment values because DSNs can contain passwords.
+container_env=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$container_id")
+while IFS= read -r entry; do
+  case "$entry" in
+    SQL_DSN=*|LOG_SQL_DSN=*)
+      dsn=${entry#*=}
+      if [[ -n "$dsn" && "$dsn" != local* ]]; then
+        echo 'External database detected. This script only backs up SQLite /data; back up MySQL/PostgreSQL (including a separate log database) with database tools or Baota first.' >&2
+        exit 1
+      fi
+      ;;
+  esac
+done <<< "$container_env"
+unset container_env dsn
+backup_dir=$(mktemp -d "$backup_root/$(date +%Y%m%d-%H%M%S)-XXXXXX")
 # Pull the helper before entering the maintenance window.
 docker image inspect alpine:3.22 >/dev/null 2>&1 || docker pull alpine:3.22
 if [[ -f .env ]]; then cp -- .env "$backup_dir/.env"; fi
