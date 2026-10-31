@@ -2,7 +2,7 @@
 
 当前项目采用 **React/Vite 客户前台 + 本仓库修改后的 New API 后端 + Docker Compose**。必须同时部署本仓库的两个服务；直接换用官方 New API 镜像会缺少本项目增加的利润、商品交付、鹈鹕测智等代码。
 
-仓库：<https://github.com/kimihalle/ace-api-console>（私有）。本文适用于一台 Linux 服务器、宝塔 Nginx、单实例 SQLite。首次构建需要访问 GitHub、Docker 镜像源、npm、Bun 和 Go 模块源。
+仓库：<https://github.com/kimihalle/ace-api-console>（当前公开，可直接通过 HTTPS 拉取）。本文适用于一台 Linux 服务器、宝塔 Nginx、单实例 SQLite。首次构建需要访问 GitHub、Docker 镜像源、npm、Bun 和 Go 模块源。
 
 **先决定是全新安装还是迁移已有数据。GitHub 只保存程序，不包含你本机的账号、余额、渠道密钥、支付配置、订单和调用记录。已有数据迁移见第 7 节。不要运行 `docker compose down -v` 或清理本项目的数据卷。**
 
@@ -29,7 +29,29 @@ flowchart LR
     A --> D[(new_api_data 数据卷)]
 ```
 
-## 2. 授权服务器拉取私有仓库
+## 2. 拉取仓库
+
+当前仓库公开，无需账号、Token 或部署密钥，在服务器执行：
+
+```bash
+mkdir -p /opt
+cd /opt
+git clone https://github.com/kimihalle/ace-api-console.git ace-api
+cd /opt/ace-api
+```
+
+拉取完成后直接继续第 3 节。部署后保持目录名不变，Compose 默认用目录名决定容器与卷的项目前缀；改目录或随意更换 `-p` 会创建另一套资源。
+
+### 以后改回私有时配置 Deploy Key
+
+仓库改回私有不会影响已运行的服务，但后续 `git pull` 需要授权。按下方配置只读 Deploy Key，再修改已有仓库的远程地址：
+
+```bash
+cd /opt/ace-api
+git remote set-url origin git@github-ace-api:kimihalle/ace-api-console.git
+```
+
+先完成下面的 SSH 密钥及别名配置，再执行拉取。
 
 在服务器生成部署密钥；如果同名文件已存在，使用原密钥，不要覆盖：
 
@@ -58,6 +80,8 @@ ssh -T git@github-ace-api
 ```
 
 首次连接按提示核对 GitHub 主机指纹；显示 `successfully authenticated` 即成功。GitHub 不提供 shell，该测试返回退出码 1 属正常现象。如果创建密钥时设置了口令，拉取时也需要输入口令或配置 ssh-agent。
+
+已有仓库完成远程地址修改后，执行 `git pull --ff-only` 即可，不要再次 clone。只有尚未拉取且仓库已经私有时，才使用下面的首次拉取命令：
 
 ```bash
 mkdir -p /opt
