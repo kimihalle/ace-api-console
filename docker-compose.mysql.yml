@@ -1,0 +1,30 @@
+# Managed MySQL for this application. Use scripts/deploy.sh and scripts/compose.sh.
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MYSQL_DATABASE: aceapi
+      MYSQL_USER: aceapi
+      MYSQL_PASSWORD: ${ACE_MYSQL_PASSWORD:?Run bash scripts/deploy.sh --fresh-mysql first}
+      MYSQL_ROOT_PASSWORD: ${ACE_MYSQL_ROOT_PASSWORD:?Run bash scripts/deploy.sh --fresh-mysql first}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP -h 127.0.0.1 -u\"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" --batch --skip-column-names -e 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  new-api:
+    environment:
+      SQL_DSN: "aceapi:${ACE_MYSQL_PASSWORD:?Missing managed MySQL password}@tcp(mysql:3306)/aceapi?charset=utf8mb4&parseTime=true&loc=Local&timeout=10s"
+      LOG_SQL_DSN: ""
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

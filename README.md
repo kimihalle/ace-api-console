@@ -1,6 +1,8 @@
 # FoxCoding Console
 
-Linux 宝塔生产部署（含私有仓库拉取、HTTPS、数据迁移、备份和更新）：[部署文档](DEPLOY-BAOTA.md)。生产启动需要同时使用 `docker-compose.yml` 和 `docker-compose.prod.yml`。
+新站点推荐：[自动部署项目和 MySQL](DEPLOY-AUTO-MYSQL.md)，运行 `bash scripts/deploy.sh --fresh-mysql` 自动建库、生成密码及配置权限。日常操作使用 `bash scripts/compose.sh`，备份使用 `bash scripts/backup.sh`。
+
+Linux 宝塔域名、HTTPS 和传统 SQLite 部署：[部署文档](DEPLOY-BAOTA.md)。自动 MySQL 部署由脚本加载所需的全部 Compose 文件。
 
 数据库默认使用 SQLite；连接宝塔已安装的 MySQL 时，在根目录 `.env` 配置 `SQL_DSN`，参见[MySQL 部署步骤](DEPLOY-MYSQL.md)。生产配置已提供 Linux 宿主机访问地址 `host.docker.internal`，不需要另外安装 MySQL 容器。
 

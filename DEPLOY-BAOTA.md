@@ -1,5 +1,7 @@
 # ACE API：Linux 宝塔部署
 
+**新站点推荐使用 [自动部署项目与 MySQL](DEPLOY-AUTO-MYSQL.md)**：数据库和应用一起启动，自动建库、设置账号与权限。下面保留传统 SQLite 和外接宝塔数据库的部署说明。已启用自动 MySQL 的用户，日常命令使用 `bash scripts/compose.sh`，更新使用 `bash scripts/deploy.sh --build`，不要混用下面只加载两份文件的旧启动命令。
+
 当前项目采用 **React/Vite 客户前台 + 本仓库修改后的 New API 后端 + Docker Compose**。必须同时部署本仓库的两个服务；直接换用官方 New API 镜像会缺少本项目增加的利润、商品交付、鹈鹕测智等代码。
 
 仓库：<https://github.com/kimihalle/ace-api-console>（当前公开，可直接通过 HTTPS 拉取）。本文默认使用单机 SQLite；要连接宝塔已有的 MySQL，先按 [MySQL 部署步骤](DEPLOY-MYSQL.md) 配置。首次构建需要访问 GitHub、Docker 镜像源、npm、Bun 和 Go 模块源。
@@ -240,6 +242,8 @@ docker run --rm --volumes-from "$backend_id" \
 ## 8. 备份、更新和回滚
 
 ### 备份 SQLite 数据与配置
+
+本节说明传统 SQLite 路径。若已启用项目自带 MySQL，同一个 `bash scripts/backup.sh` 命令会自动改为导出 MySQL；详情见 [自动 MySQL 备份说明](DEPLOY-AUTO-MYSQL.md#4-密码备份与恢复)。
 
 仓库提供备份脚本：自动找到当前容器真实挂载的数据，短暂停止后端写入，备份 `/data`、根目录 `.env` 和当前提交号，然后恢复原本运行的后端。
 

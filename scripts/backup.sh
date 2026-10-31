@@ -4,6 +4,9 @@ set -Eeuo pipefail
 umask 077
 project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$project_dir"
+if [[ -f .env.mysql ]]; then
+  exec bash scripts/backup-mysql.sh "$@"
+fi
 backup_root=${1:-"$project_dir/backups"}
 mkdir -p -- "$backup_root"
 backup_root=$(cd -- "$backup_root" && pwd)
