@@ -113,4 +113,16 @@ func TestChannelHealthPersistence(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, failed.Summary)
 	require.Equal(t, 50.0, failed.Summary.SuccessRate, "real failures and wildcard success are both counted")
+
+	cadence := &Channel{Id: 17, Group: "cadence"}
+	require.NoError(t, RecordChannelHealthCheck(cadence, now.Unix()-600, true, 100))
+	require.NoError(t, RecordChannelHealthCheck(cadence, now.Unix(), false, 200))
+	tenMinute, err := QueryChannelHealth("cadence", 8, now, 600)
+	require.NoError(t, err)
+	require.Equal(t, int64(600), tenMinute.BucketSeconds)
+	require.Equal(t, int64(48), (tenMinute.WindowEnd-tenMinute.WindowStart)/tenMinute.BucketSeconds+1)
+	require.Equal(t, 2, len(tenMinute.SuccessSeries))
+	require.Less(t, tenMinute.SuccessSeries[0].Ts, tenMinute.SuccessSeries[1].Ts)
+	require.Equal(t, 100.0, tenMinute.SuccessSeries[0].SuccessRate)
+	require.Equal(t, 0.0, tenMinute.SuccessSeries[1].SuccessRate)
 }

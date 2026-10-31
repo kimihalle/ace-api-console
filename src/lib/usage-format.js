@@ -99,9 +99,9 @@ export function csvLine(cells) {
 export function healthHours(metric, windowStart, windowEnd, bucketSeconds = 3600) {
   if (!(Number(windowStart) > 0) || !(Number(windowEnd) >= Number(windowStart))) return [];
   const points = new Map((metric?.recent_success_series || []).map((point) => [Number(point.ts), point]));
-  const interval = bucketSeconds === 300 ? 300 : 3600;
+  const interval = Number.isFinite(Number(bucketSeconds)) && Number(bucketSeconds) > 0 ? Math.floor(Number(bucketSeconds)) : 3600;
   const endHour = Math.floor(Number(windowEnd) / interval) * interval;
-  const startHour = Math.max(Math.floor(Number(windowStart) / interval) * interval, endHour - (8 * 3600 / interval - 1) * interval);
+  const startHour = Math.ceil(Number(windowStart) / interval) * interval;
   const buckets = [];
   for (let ts = startHour; ts <= endHour; ts += interval) {
     const point = points.get(ts);

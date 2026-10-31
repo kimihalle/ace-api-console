@@ -81,3 +81,16 @@ test('health display runs oldest to newest from left to right and preserves gaps
   const hours = healthDisplayBuckets({ recent_success_series: [{ ts: start, success_rate: 0 }, { ts: start + 7 * 3600, success_rate: 100 }] }, start, start + 7 * 3600 + 12);
   assert.ok(hours.every((bucket, index) => index === 0 || bucket.ts > hours[index - 1].ts));
 });
+
+test('health display follows the configured probe cadence instead of fixed five-minute buckets', () => {
+  const start = 1800000000;
+  const buckets = healthDisplayBuckets({ recent_success_series: [
+    { ts: start, success_rate: 100 },
+    { ts: start + 600, success_rate: 0 },
+  ] }, start, start + 8 * 3600 - 600, 600);
+  assert.equal(buckets.length, 48);
+  assert.deepEqual(buckets.slice(0, 3).map(({ ts, rate }) => [ts, rate]), [
+    [start, 100], [start + 600, 0], [start + 1200, null],
+  ]);
+  assert.ok(buckets.every((bucket, index) => index === 0 || bucket.ts - buckets[index - 1].ts === 600));
+});

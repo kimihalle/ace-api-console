@@ -12,6 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestScheduledTaskDueUsesPreviousStartTime(t *testing.T) {
+	latest := &model.SystemTask{CreatedAt: 1000, UpdatedAt: 1450, Status: model.SystemTaskStatusSucceeded}
+	interval := 5 * time.Minute
+	assert.False(t, scheduledTaskDue(1299, latest, interval))
+	assert.True(t, scheduledTaskDue(1300, latest, interval), "long task duration must not shift the next scheduled start")
+	assert.True(t, scheduledTaskDue(1000, nil, interval), "the first scheduled run is immediately due")
+}
+
 // withSystemTaskRegistry swaps the package registry for the given handlers for
 // the duration of a test and restores the original registry afterward.
 func withSystemTaskRegistry(t *testing.T, handlers ...SystemTaskHandler) {

@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +30,11 @@ func GetChannelHealthSummary(c *gin.Context) {
 		}
 		hours = parsed
 	}
-	result, err := model.QueryChannelHealth(group, hours, time.Now())
+	interval := int64(operation_setting.GetMonitorSetting().AutoTestChannelMinutes * 60)
+	if interval < 60 {
+		interval = 60
+	}
+	result, err := model.QueryChannelHealth(group, hours, time.Now(), interval)
 	if err != nil {
 		common.ApiError(c, common.NewMessage("Database error, please contact the administrator"))
 		return

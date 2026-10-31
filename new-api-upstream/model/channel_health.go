@@ -65,11 +65,15 @@ func RecordChannelHealthCheck(channel *Channel, checkedAt int64, success bool, l
 	return DB.Where("checked_at < ?", checkedAt-30*24*3600).Delete(&ChannelHealthCheck{}).Error
 }
 
-func QueryChannelHealth(group string, hours int, now time.Time) (ChannelHealthResult, error) {
-	const interval int64 = 300
+func QueryChannelHealth(group string, hours int, now time.Time, configuredInterval ...int64) (ChannelHealthResult, error) {
+	interval := int64(300)
+	if len(configuredInterval) > 0 && configuredInterval[0] > 0 {
+		interval = configuredInterval[0]
+	}
 	hours = min(24, max(1, hours))
 	end := now.Unix()
-	start := end - end%interval - int64(hours*12-1)*interval
+	bucketCount := (int64(hours*3600) + interval - 1) / interval
+	start := end - end%interval - (bucketCount-1)*interval
 	result := ChannelHealthResult{Source: "channel_checks", WindowStart: start, WindowEnd: end, BucketSeconds: interval, SuccessSeries: []ChannelHealthPoint{}}
 	if strings.TrimSpace(group) == "" {
 		return result, nil

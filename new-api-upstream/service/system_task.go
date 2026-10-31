@@ -284,7 +284,7 @@ func runSystemTaskScheduler() {
 			if latest.Status == model.SystemTaskStatusPending || latest.Status == model.SystemTaskStatusRunning {
 				continue // an active row already exists
 			}
-			if now-latest.UpdatedAt < int64(scheduled.Interval().Seconds()) {
+			if !scheduledTaskDue(now, latest, scheduled.Interval()) {
 				continue // not due yet
 			}
 		}
@@ -300,6 +300,16 @@ func runSystemTaskScheduler() {
 			continue
 		}
 	}
+}
+
+func scheduledTaskDue(now int64, latest *model.SystemTask, interval time.Duration) bool {
+	if latest == nil {
+		return true
+	}
+	// Measure cadence from the previous run's scheduled start, not its
+	// completion, so long channel-test batches do not continually shift
+	// subsequent checks later.
+	return now-latest.CreatedAt >= int64(interval.Seconds())
 }
 
 // runWithLeaseHeartbeat renews the per-type lock on a background ticker while
