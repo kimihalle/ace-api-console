@@ -5,10 +5,11 @@ import { Network } from 'lucide-react';
 export function SiteLogo({ status, name = '', className = 'site-brand-icon' }) {
   const [failed, setFailed] = useState(false);
   const logo = status?.logo || status?.logo_url || status?.system_logo;
+  const hasImage = Boolean(logo && !failed);
 
   useEffect(() => setFailed(false), [logo]);
 
-  return <span className={className} aria-hidden="true">
+  return <span className={`${className}${hasImage ? ' has-site-image' : ''}`} aria-hidden="true">
     {logo && !failed ? <img src={logo} alt="" onError={() => setFailed(true)} /> : <Network size={18} />}
   </span>;
 }

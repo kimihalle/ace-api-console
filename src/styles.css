@@ -1271,6 +1271,11 @@ td strong { color: #36404d; }
 .language-switcher .model-select__menu { left: auto; right: 0; min-width: 130px; padding: 4px; border-radius: 10px; }
 .language-switcher .model-select__option { min-height: 36px; font-size: 12px; padding: 7px 10px; border-radius: 6px; }
 .auth-inline-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.site-brand-icon.has-site-image, .brand-mark.has-site-image { display: flex; align-items: center; width: max-content; min-width: 0; height: 36px; padding: 0; border: 0; border-radius: 0; background: transparent; transform: none; overflow: visible; }
+.site-brand-icon.has-site-image img, .brand-mark.has-site-image img { display: block; width: auto; height: auto; max-width: 88px; max-height: 100%; border-radius: 0; object-fit: contain; }
+.auth-inline-brand .site-brand-icon.has-site-image { height: 42px; }
+.home-v2 .site-brand-icon.has-site-image { height: 36px; }
+.console-sidebar .brand-mark.console-brand-mark.has-site-image, .workspace-header .brand-mark.has-site-image { height: 28px; }
 .workspace-header-main { grid-template-columns: minmax(100px, 1fr) minmax(0, auto) auto; gap: 18px; }
 .workspace-nav-link { text-decoration: none; }
 .mp-route-detail .health-timeline { gap: 2px; }
