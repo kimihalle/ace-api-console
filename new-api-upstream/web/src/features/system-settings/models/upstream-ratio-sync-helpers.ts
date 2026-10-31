@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createContext, useContext } from 'react'
 
+import type { ModelPricingChange } from '@/features/model-pricing/api'
 import { BILLING_PRICING_VARS, splitBillingExprAndRequestRules } from '@/features/pricing/lib/billing-expr'
 import { tryParseVisualConfig } from '@/features/pricing/lib/tier-expr'
 
@@ -32,6 +33,47 @@ import { formatPricingNumber } from './pricing-format'
 
 export type PricingSourceSelection = { model: string; source: string }
 export type PricingSourceSelections = Record<string, string>
+
+export async function excludeInvalidSyncExpressions(
+  changes: ModelPricingChange[],
+  validate: (change: ModelPricingChange) => Promise<unknown>
+): Promise<{
+  validChanges: ModelPricingChange[]
+  skipped: Array<{ model: string; reason: string }>
+}> {
+  const expressionChanges = changes.filter(
+    (change) =>
+      change.pricing['billing_setting.billing_mode'] === 'tiered_expr' &&
+      typeof change.pricing['billing_setting.billing_expr'] === 'string'
+  )
+  const validation: Array<{ model: string; reason: string } | null> = []
+  for (let index = 0; index < expressionChanges.length; index += 8) {
+    const batch = expressionChanges.slice(index, index + 8)
+    validation.push(
+      ...(await Promise.all(
+        batch.map(async (change) => {
+          try {
+            await validate(change)
+            return null
+          } catch (error) {
+            return {
+              model: change.model_name,
+              reason: error instanceof Error ? error.message : String(error),
+            }
+          }
+        })
+      ))
+    )
+  }
+  const skipped = validation.filter(
+    (result): result is NonNullable<typeof result> => result !== null
+  )
+  const skippedNames = new Set(skipped.map(({ model }) => model))
+  return {
+    validChanges: changes.filter((change) => !skippedNames.has(change.model_name)),
+    skipped,
+  }
+}
 
 export function getUpstreamDisplayName(
   sourceName: string,

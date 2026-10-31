@@ -82,15 +82,15 @@ test('health display runs oldest to newest from left to right and preserves gaps
   assert.ok(hours.every((bucket, index) => index === 0 || bucket.ts > hours[index - 1].ts));
 });
 
-test('health display follows the configured probe cadence instead of fixed five-minute buckets', () => {
+test('health display can use compact five-minute slots without inventing probe results', () => {
   const start = 1800000000;
   const buckets = healthDisplayBuckets({ recent_success_series: [
     { ts: start, success_rate: 100 },
     { ts: start + 600, success_rate: 0 },
-  ] }, start, start + 8 * 3600 - 600, 600);
-  assert.equal(buckets.length, 48);
-  assert.deepEqual(buckets.slice(0, 3).map(({ ts, rate }) => [ts, rate]), [
-    [start, 100], [start + 600, 0], [start + 1200, null],
+  ] }, start, start + 8 * 3600 - 300, 300);
+  assert.equal(buckets.length, 96);
+  assert.deepEqual(buckets.slice(0, 4).map(({ ts, rate }) => [ts, rate]), [
+    [start, 100], [start + 300, null], [start + 600, 0], [start + 900, null],
   ]);
-  assert.ok(buckets.every((bucket, index) => index === 0 || bucket.ts - buckets[index - 1].ts === 600));
+  assert.ok(buckets.every((bucket, index) => index === 0 || bucket.ts - buckets[index - 1].ts === 300));
 });

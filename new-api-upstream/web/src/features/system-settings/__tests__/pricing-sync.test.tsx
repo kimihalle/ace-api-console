@@ -38,6 +38,7 @@ import { api } from '@/lib/api'
 import { UpstreamRatioSync } from '../models/upstream-ratio-sync'
 import {
   getSyncPriceLines,
+  excludeInvalidSyncExpressions,
   type PricingSourceSelections,
 } from '../models/upstream-ratio-sync-helpers'
 import { UpstreamRatioSyncTable } from '../models/upstream-ratio-sync-table'
@@ -162,6 +163,48 @@ describe('pricing synchronization', () => {
     const copy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
     await user.click(screen.getByRole('button', { name: 'Copy billing expression' }))
     expect(copy).toHaveBeenCalledWith(expression)
+  })
+
+  it('skips only upstream expressions rejected by NewAPI preview', async () => {
+    const changes = [
+      {
+        model_name: 'gpt-5.6-luna',
+        expected_version: 'v1',
+        pricing: {
+          'billing_setting.billing_mode': 'tiered_expr',
+          'billing_setting.billing_expr': 'tier("base", cc12h * 0.5)',
+        },
+      },
+      {
+        model_name: 'gpt-6-astra',
+        expected_version: 'v1',
+        pricing: {
+          'billing_setting.billing_mode': 'tiered_expr',
+          'billing_setting.billing_expr': 'tier("base", cc12h * 1)',
+        },
+      },
+      {
+        model_name: 'deepseek-v4',
+        expected_version: 'v1',
+        pricing: { ModelRatio: 1 },
+      },
+    ]
+    const result = await excludeInvalidSyncExpressions(
+      changes,
+      async (change) => {
+        if (change.model_name.includes('gpt-')) {
+          throw new Error('unknown variable cc12h')
+        }
+      }
+    )
+
+    expect(result.validChanges.map(({ model_name }) => model_name)).toEqual([
+      'deepseek-v4',
+    ])
+    expect(result.skipped.map(({ model }) => model)).toEqual([
+      'gpt-5.6-luna',
+      'gpt-6-astra',
+    ])
   })
 
   it('shows every parsed tier and falls back to the full expression when pricing cannot be parsed safely', () => {
@@ -452,7 +495,7 @@ describe('pricing synchronization', () => {
         },
       ],
     })
-    expect(post).toHaveBeenCalledTimes(2)
+    expect(post).toHaveBeenCalledTimes(3)
     expect(
       get.mock.calls.filter(([url]) => url === '/api/option/model_pricing')
         .length

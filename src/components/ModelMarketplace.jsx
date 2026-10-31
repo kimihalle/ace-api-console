@@ -118,7 +118,7 @@ export default function ModelMarketplace({ models, groups, catalog, quota, userG
           {visible.map((model) => {
             const pricing = marketPriceDisplay(model, selectedGroup, status);
             return <article className="mp-model" key={model.name}><div className="mp-model-heading"><span className="mp-model-brand"><VendorIcon name={model.vendorIcon} fallback={model.vendor.slice(0, 1)} size={20} /></span><div className="mp-model-identity"><h3 title={model.name}>{model.name}</h3><span>{model.vendor}</span></div><button className="mp-copy" aria-label={t("复制模型名称 {v0}", { v0: model.name })} title={t("复制模型名称")} onClick={() => copyModel(model.name)}>{copied === model.name ? <Check size={13} /> : <Copy size={13} />}</button></div>
-              <div className="mp-model-pricing">{pricing.mode ? <div className="mp-dynamic-price">{t(pricing.mode)}</div> : <dl>{pricing.items.map(([label, price]) => <div key={label}><dt>{t(label)}</dt><dd>{price}</dd></div>)}</dl>}<span className="mp-price-unit">{t(pricing.unit)}</span></div>
+              <div className="mp-model-pricing">{pricing.mode ? <div className="mp-dynamic-price">{t(pricing.mode)}</div> : <><div className="mp-price-columns"><span>{t('上游价格')}</span><span>{t('分组后价格')}</span></div><dl>{pricing.items.map(([label, upstream, sale]) => <div key={label}><dt>{t(label)}</dt><dd><span>{upstream}</span><strong>{sale}</strong></dd></div>)}</dl></>}<span className="mp-price-unit">{t(pricing.unit)}</span></div>
             </article>;
           })}
         </div>

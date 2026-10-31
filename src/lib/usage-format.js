@@ -112,5 +112,13 @@ export function healthHours(metric, windowStart, windowEnd, bucketSeconds = 3600
 }
 
 export function healthDisplayBuckets(metric, windowStart, windowEnd, bucketSeconds = 3600) {
-  return healthHours(metric, windowStart, windowEnd, bucketSeconds);
+  if (!(Number(windowStart) > 0) || !(Number(windowEnd) >= Number(windowStart))) return [];
+  const points = new Map((metric?.recent_success_series || []).map((point) => [Number(point.ts), point]));
+  const interval = Number.isFinite(Number(bucketSeconds)) && Number(bucketSeconds) > 0 ? Math.floor(Number(bucketSeconds)) : 3600;
+  const buckets = [];
+  for (let ts = Number(windowStart); ts <= Number(windowEnd); ts += interval) {
+    const rate = points.get(ts)?.success_rate;
+    buckets.push({ ts, rate: rate != null && Number.isFinite(Number(rate)) ? Math.min(100, Math.max(0, Number(rate))) : null });
+  }
+  return buckets;
 }

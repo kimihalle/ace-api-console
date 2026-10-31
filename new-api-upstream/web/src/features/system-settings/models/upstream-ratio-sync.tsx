@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import {
   buildPricingChanges,
   getModelPricing,
+  previewModelPricing,
   saveModelPricing,
   invalidateModelPricing,
   type ModelPricingConfig,
@@ -62,6 +63,7 @@ import {
 } from './constants'
 import {
   describeSyncPrice,
+  excludeInvalidSyncExpressions,
   getUpstreamDisplayName,
   type PricingSourceSelection,
   type PricingSourceSelections,
@@ -177,24 +179,54 @@ export function UpstreamRatioSync() {
         pricingBaseline.options,
         resolutions
       )
-      await saveModelPricing(
-        buildPricingChanges(pricingBaseline, pricingBaseline.options, after)
+      const changes = buildPricingChanges(
+        pricingBaseline,
+        pricingBaseline.options,
+        after
       )
-      return resolutions
+      const { validChanges, skipped } = await excludeInvalidSyncExpressions(
+        changes,
+        (change) =>
+          previewModelPricing({
+            model_name: change.model_name,
+            pricing: change.pricing,
+          })
+      )
+      if (!validChanges.length && skipped.length) {
+        throw new Error(
+          t('No models were synced; unsupported expressions were skipped: {{models}}', {
+            models: skipped.map(({ model }) => model).join(', '),
+          })
+        )
+      }
+      await saveModelPricing(validChanges)
+      const skippedNames = new Set(skipped.map(({ model }) => model))
+      const synced = Object.fromEntries(
+        Object.entries(resolutions).filter(([model]) => !skippedNames.has(model))
+      )
+      return { synced, skipped }
     },
-    onSuccess: async (saved) => {
+    onSuccess: async ({ synced, skipped }) => {
       setPrices((previous) =>
         Object.fromEntries(
           Object.entries(previous).map(([name, row]) => [
             name,
-            { ...row, current: saved[name] ?? row.current },
+            { ...row, current: synced[name] ?? row.current },
           ])
         )
       )
       setSelectedSources({})
       setConflictDialogOpen(false)
       setPricingBaseline(null)
-      toast.success(t('Prices synced successfully'))
+      if (skipped.length) {
+        toast.warning(
+          t('Some models were skipped because their expressions are unsupported: {{models}}', {
+            models: skipped.map(({ model }) => model).join(', '),
+          })
+        )
+      } else {
+        toast.success(t('Prices synced successfully'))
+      }
       await invalidateModelPricing(queryClient)
       try {
         setPricingBaseline(await getModelPricing())

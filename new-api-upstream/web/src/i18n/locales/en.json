@@ -4892,6 +4892,8 @@
     "Prices shown per {{unit}} tokens": "Prices shown per {{unit}} tokens",
     "Prices shown per usage unit": "Prices shown per usage unit",
     "Prices synced successfully": "Prices synced successfully",
+    "No models were synced; unsupported expressions were skipped: {{models}}": "No models were synced; unsupported expressions were skipped: {{models}}",
+    "Some models were skipped because their expressions are unsupported: {{models}}": "Some models were skipped because their expressions are unsupported: {{models}}",
     "Prices vary by usage tier and request conditions": "Prices vary by usage tier and request conditions",
     "Pricing": "Pricing",
     "Pricing & Display": "Pricing & Display",

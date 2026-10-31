@@ -4892,6 +4892,8 @@
     "Prices shown per {{unit}} tokens": "價格按每 {{unit}} Token 顯示",
     "Prices shown per usage unit": "價格按每個用量單位顯示",
     "Prices synced successfully": "價格同步成功",
+    "No models were synced; unsupported expressions were skipped: {{models}}": "沒有同步任何模型；已略過不支援的計費運算式：{{models}}",
+    "Some models were skipped because their expressions are unsupported: {{models}}": "部分模型因計費運算式不相容而略過：{{models}}",
     "Prices vary by usage tier and request conditions": "價格根據用量檔位和請求條件動態調整",
     "Pricing": "定價",
     "Pricing & Display": "定價與顯示",
