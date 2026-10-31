@@ -21,7 +21,7 @@ export default function ModelHealth({ model, metric: selectedMetric, scope, metr
   const time = (ts) => new Date(ts * 1000).toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   return <div className="model-health">
     <div className="model-health-heading" title={t(probes ? '{scope}的渠道检测成功率；按后台检测间隔采样，灰色表示该时段暂无检测' : '{scope}的实际调用成功率；每格一小时，灰色表示暂无请求', { scope: group })}><span><Activity size={13} />{t('状态趋势')}</span><strong className={`health-rate ${error ? 'unknown' : tone}`}>{label}</strong><small>{t('近 8 小时')}</small></div>
-    <div className="health-timeline" role="group" tabIndex={buckets.length ? 0 : undefined}
+    <div className={`health-timeline ${probes ? 'probe-timeline' : ''}`} style={{ '--health-bucket-count': Math.max(buckets.length, 1) }} role="group" tabIndex={buckets.length ? 0 : undefined}
       aria-label={t('{model}，{label}。左右方向键查看时段。', { model, label })}
       onFocus={() => setActive(buckets.length - 1)} onBlur={() => setActive(null)} onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) setActive(null); }}
       onKeyDown={(event) => {

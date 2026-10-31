@@ -53,6 +53,8 @@
 .mp-route-detail .model-health-heading small { font-size: 10px; }
 .mp-route-detail .health-timeline { height: 22px; gap: 5px; margin-top: 9px; }
 .mp-route-detail .health-bar { height: 22px; border-radius: 3px; }
+.mp-route-detail .probe-timeline { display: grid; grid-template-columns: repeat(var(--health-bucket-count), minmax(0, 1fr)); gap: 0; }
+.mp-route-detail .probe-timeline .health-bar { width: 38%; justify-self: center; }
 .mp-route-detail .health-bar.healthy { background: #36c69a; }
 .mp-route-detail .health-bar.unknown { background: #e1e5e9; }
 .mp-route-detail .health-tooltip { z-index: 3; }
