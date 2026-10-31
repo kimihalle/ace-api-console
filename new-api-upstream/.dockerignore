@@ -1,5 +1,8 @@
 .github
 .git
+.git-upstream-history
+.env
+.env.*
 *.md
 .vscode
 .gitignore

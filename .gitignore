@@ -4,6 +4,13 @@
 node_modules/
 dist/
 artifacts/
+backups/
+*.tgz
+*.db
+*.db-wal
+*.db-shm
+*.pem
+*.key
 *.log
 .vscode/
 .idea/

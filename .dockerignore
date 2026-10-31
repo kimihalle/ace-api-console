@@ -3,5 +3,8 @@ dist
 new-api-upstream
 .git
 .env
+.env.*
+backups
+*.tgz
 *.log
 artifacts

@@ -1,5 +1,7 @@
 # FoxCoding Console
 
+Linux 宝塔生产部署（含私有仓库拉取、HTTPS、数据迁移、备份和更新）：[部署文档](DEPLOY-BAOTA.md)。生产启动需要同时使用 `docker-compose.yml` 和 `docker-compose.prod.yml`。
+
 FoxCoding Console is a custom React/Vite customer-facing frontend. This workspace also contains a full [New API](https://github.com/QuantumNous/new-api) source clone in `new-api-upstream`; its Go service is the backend, and its native console remains the admin UI. No other project's New API container is used.
 
 ## Run the workspace stack

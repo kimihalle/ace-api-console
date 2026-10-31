@@ -1,5 +1,7 @@
 services:
   new-api:
     environment:
-      # 宝塔 HTTPS 反代后，登录会话必须使用 Secure Cookie。
       SESSION_COOKIE_SECURE: "true"
+      SESSION_COOKIE_TRUSTED_URL: ${SITE_URL:?Set SITE_URL to your public HTTPS origin in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?Set a persistent SESSION_SECRET in .env}
+      CRYPTO_SECRET: ${CRYPTO_SECRET:?Set a persistent CRYPTO_SECRET in .env}
