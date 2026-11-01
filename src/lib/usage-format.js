@@ -79,11 +79,17 @@ export function usageLogQuery(rangeQuery) {
 
 export const usageColumns = ['时间', '模型', '分组', '输入 Token', '输出 Token', '缓存创建 Token', '缓存读取 Token', '额度使用', '消费（基数额度）', '状态'];
 
-export function usageCsvRow(row, status) {
+export function usageGroupLabel(value, groups = []) {
+  if (value == null || value === '') return '—';
+  const group = groups.find((item) => String(item.value) === String(value));
+  return group?.label || String(value);
+}
+
+export function usageCsvRow(row, status, groups = []) {
   const usage = logUsage(row);
   return [
     Number(row.created_at) > 0 ? new Date(Number(row.created_at) * 1000).toLocaleString(getLocale()) : '—',
-    row.model_name || '—', row.group || '—', usage.input, usage.output, usage.cacheWrite, usage.cacheRead,
+    row.model_name || '—', usageGroupLabel(row.group, groups), usage.input, usage.output, usage.cacheWrite, usage.cacheRead,
     usage.quota, formatQuotaDisplay(usage.quota, status), t(Number(row.type) === 5 ? '失败' : '成功'),
   ].map((value) => value == null ? '—' : String(value));
 }

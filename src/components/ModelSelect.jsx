@@ -28,6 +28,8 @@ export default function ModelSelect({
       label: item?.label ?? item?.name ?? item?.value ?? '',
       group: item?.group,
       icon: item?.icon,
+      ratio: item?.ratio,
+      ratioTone: item?.ratioTone,
       disabled: Boolean(item?.disabled),
       description: item?.description,
     };
@@ -60,7 +62,14 @@ export default function ModelSelect({
   }, [open, value, flatOptions, enabledIndexes]);
 
   useEffect(() => {
-    if (open && activeIndex >= 0) listRef.current?.querySelector(`[data-index="${activeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+    if (!open || activeIndex < 0) return;
+    const menu = listRef.current;
+    const option = menu?.querySelector(`[data-index="${activeIndex}"]`);
+    if (!menu || !option) return;
+    const menuRect = menu.getBoundingClientRect();
+    const optionRect = option.getBoundingClientRect();
+    if (optionRect.top < menuRect.top) menu.scrollTop -= menuRect.top - optionRect.top;
+    else if (optionRect.bottom > menuRect.bottom) menu.scrollTop += optionRect.bottom - menuRect.bottom;
   }, [activeIndex, open]);
 
   const choose = (item) => {
@@ -105,14 +114,16 @@ export default function ModelSelect({
     <div ref={rootRef} className={`model-select ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()}>
       <button type="button" role="combobox" className="model-select__trigger" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} aria-label={ariaLabel} disabled={disabled} onClick={() => setOpen((current) => !current)} onKeyDown={onKeyDown}>
         <span className={selected ? 'model-select__value model-select__label-content' : 'model-select__placeholder'}>{selected?.icon}<span>{selected?.label || placeholder}</span></span>
+        {selected?.ratio != null && Number.isFinite(Number(selected.ratio)) && <span className={`mp-ratio mp-ratio-tone-${Number(selected.ratioTone) % 6}`} aria-label={t('倍率 {value}', { value: selected.ratio })}>×{selected.ratio}</span>}
         <span className="model-select__chevron" aria-hidden="true" />
       </button>
       {open && <div id={listId} ref={listRef} className="model-select__menu" role="listbox" aria-label={ariaLabel} tabIndex={-1}>
         {rows.length === 0 ? <div className="model-select__empty">{t("暂无可选项")}</div> : rows.map((row) => row.type === 'group' ? (
           <div className="model-select__group" key={row.key}>{row.label}</div>
         ) : (
-          <button type="button" id={`${listId}-${row.index}`} key={row.key} data-index={row.index} role="option" tabIndex={-1} aria-selected={String(row.item.value) === String(value)} disabled={row.item.disabled} className={`model-select__option ${row.index === activeIndex ? 'is-active' : ''} ${String(row.item.value) === String(value) ? 'is-selected' : ''}`.trim()} onMouseEnter={() => setActiveIndex(row.index)} onClick={() => choose(row.item)}>
+          <button type="button" id={`${listId}-${row.index}`} key={row.key} data-index={row.index} role="option" tabIndex={-1} aria-selected={String(row.item.value) === String(value)} disabled={row.item.disabled} className={`model-select__option ${row.index === activeIndex ? 'is-active' : ''} ${String(row.item.value) === String(value) ? 'is-selected' : ''}`.trim()} onClick={() => choose(row.item)}>
             <span className="model-select__label-content">{row.item.icon}<span><span className="model-select__option-label">{row.item.label}</span>{row.item.description && <span className="model-select__option-description">{row.item.description}</span>}</span></span>
+            {row.item.ratio != null && Number.isFinite(Number(row.item.ratio)) && <span className={`mp-ratio mp-ratio-tone-${Number(row.item.ratioTone) % 6}`} aria-label={t('倍率 {value}', { value: row.item.ratio })}>×{row.item.ratio}</span>}
             {String(row.item.value) === String(value) && <span className="model-select__check" aria-hidden="true">✓</span>}
           </button>
         ))}

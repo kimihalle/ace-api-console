@@ -15,8 +15,8 @@ import ModelSelect from './components/ModelSelect.jsx';
 import ModelMarketplace from './components/ModelMarketplace.jsx';
 import PelicanSamples from './components/PelicanSamples.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
-import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageColumns, usageCsvRow, csvLine } from './lib/usage-format.js';
-import { availableMarketGroups, marketGroupVendors } from './lib/model-marketplace.js';
+import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
+import { availableMarketGroups, configuredGroupRatio, marketGroupVendors } from './lib/model-marketplace.js';
 import { consolePage, consolePath, consoleReturnPath, isConsolePath } from './lib/routes.js';
 import { useLanguage } from './lib/use-language.js';
 import LanguageSwitcher from './components/LanguageSwitcher.jsx';
@@ -175,16 +175,18 @@ function App() {
   const [keyGroup, setKeyGroup] = useState('');
   const workspaceNavRef = useRef(null);
   const groups = useMemo(() => availableMarketGroups(pricingCatalog.usable_group, pricingCatalog.group_ratio, pricingCatalog.group_display_order), [pricingCatalog, language]);
-  const keyGroupOptions = useMemo(() => groups.map(({ value, label }) => {
+  const keyGroupOptions = useMemo(() => groups.map(({ value, label }, index) => {
     const brands = marketGroupVendors(userModels, value).slice(0, 3);
     return {
       value,
       label,
+      ratio: configuredGroupRatio(pricingCatalog.group_ratio, value),
+      ratioTone: index % 6,
       icon: <span className="key-group-icons" role="img" aria-label={brands.map((brand) => brand.name).join('、') || t('暂无可用模型')}>
         {brands.length ? brands.map((brand) => <span className="key-group-icon" key={`${brand.name}-${brand.icon}`} aria-hidden="true"><VendorIcon name={brand.icon} fallback={brand.name.slice(0, 1)} size={18} /></span>) : <span className="key-group-icon is-empty" aria-hidden="true"><Activity size={16} /></span>}
       </span>,
     };
-  }), [groups, userModels, language]);
+  }), [groups, pricingCatalog.group_ratio, userModels, language]);
   const announcements = useAnnouncements({ userId: inConsole && !authLoading ? authUser?.id : null, status: siteStatus, notice: siteNotice, blocked: Boolean(modal) || page === 'plans' });
 
   useEffect(() => {
@@ -626,7 +628,7 @@ function App() {
       records.pop();
       if (!result.success) throw new Error(result.message || t("日志导出失败"));
       if (!records.length) return notify(t("当前周期没有可导出的调用记录"));
-      const blob = new Blob(['\uFEFF', [csvLine(usageColumns.map((column) => t(column))), ...records.map((record) => csvLine(usageCsvRow(record, siteStatus)))].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const blob = new Blob(['\uFEFF', [csvLine(usageColumns.map((column) => t(column))), ...records.map((record) => csvLine(usageCsvRow(record, siteStatus, groups)))].join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `usage-logs-${usageRange}-${new Date().toLocaleDateString('sv-SE')}.csv`;
@@ -925,10 +927,11 @@ function Usage({ data, status: siteStatus, rows, range, onRange, filters, models
       <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageColumns.map((label, index) => <th key={label} scope="col" className={index >= 3 && index <= 8 ? 'numeric' : ''} title={index === 7 ? t("实际扣除的内部额度；订阅请求使用订阅扣费额度") : index === 8 ? t("按站点额度单位换算的消费，保留本次请求的计费结果") : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
         const usage = logUsage(row);
         const failed = Number(row.type) === 5;
+        const groupLabel = usageGroupLabel(row.group, groups);
         return <tr key={row.id ?? `${row.created_at}-${index}`}>
           <td className="usage-time">{logDate(row.created_at)}</td>
           <td><strong className="mono usage-model" title={row.model_name}>{row.model_name || '—'}</strong></td>
-          <td><span className="soft-tag usage-group" title={row.group || undefined}>{row.group || '—'}</span></td>
+          <td><span className="soft-tag usage-group" title={groupLabel !== row.group ? row.group : undefined}>{groupLabel}</span></td>
           <td className="numeric">{usage.input == null ? '—' : summaryValueFor(usage.input)}</td>
           <td className="numeric">{usage.output == null ? '—' : summaryValueFor(usage.output)}</td>
           <td className="numeric">{usage.cacheWrite == null ? '—' : summaryValueFor(usage.cacheWrite)}</td>

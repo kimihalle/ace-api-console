@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageCsvRow, csvLine, healthHours, healthDisplayBuckets } from './usage-format.js';
+import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets } from './usage-format.js';
 
 test('quota units and currency precision stay consistent, including small call costs', () => {
   assert.equal(formatQuotaDisplay(50000000, { quota_per_unit: 500000 }), '$100.00');
@@ -41,8 +41,12 @@ test('subscription use and zero consumption are not replaced by the wallet quota
 
 test('exports share server filtering, column order and protect spreadsheet formulas', () => {
   assert.equal(usageLogQuery('start_timestamp=123').get('usage_only'), 'true');
-  const cells = usageCsvRow({ type: 2, model_name: '=cmd()', group: 'vip', prompt_tokens: 11, completion_tokens: 53, quota: 1371 }, {});
-  assert.deepEqual(cells.slice(2), ['vip', '11', '53', '0', '0', '1371', '$0.002742', '成功']);
+  const groups = [{ value: 'vip', label: 'Claude AWS渠道' }];
+  const row = { type: 2, model_name: '=cmd()', group: 'vip', prompt_tokens: 11, completion_tokens: 53, quota: 1371 };
+  const cells = usageCsvRow(row, {}, groups);
+  assert.deepEqual(cells.slice(2), ['Claude AWS渠道', '11', '53', '0', '0', '1371', '$0.002742', '成功']);
+  assert.equal(usageGroupLabel('missing', groups), 'missing');
+  assert.equal(usageGroupLabel('', groups), '—');
   assert.match(csvLine(cells), /"'=cmd\(\)"/);
 });
 
