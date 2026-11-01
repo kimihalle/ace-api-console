@@ -10,6 +10,10 @@
   "Unable to load preview": "卡片暂时无法加载",
   "This removes the stored source and its hourly result permanently.": "这将永久删除源代码及对应的小时记录。",
   "translation": {
+    "Favicon URL": "网页图标地址",
+    "Website name used in browser titles on both the site and admin console": "用于前台与后台浏览器标签页标题的网站名称",
+    "Header logo image. When configured, only the logo is displayed without the website name.": "页面品牌区域的 Logo。设置后只显示 Logo，不再重复显示网站名称。",
+    "Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.": "前台与后台共用的浏览器标签页图标，与 Logo 独立设置。留空使用默认图标。",
     "Group display order": "分组显示顺序",
     "Display order only. Pricing and automatic routing are unchanged.": "仅调整显示顺序，不影响计费和自动路由。",
     "Group display order must contain unique non-empty group names": "分组显示顺序必须由不重复、非空的分组名称组成",

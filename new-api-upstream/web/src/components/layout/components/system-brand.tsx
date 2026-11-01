@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -26,6 +27,8 @@ import {
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'
+
+import { HeaderLogo } from './header-logo'
 
 type SystemBrandProps = {
   defaultName?: string
@@ -47,10 +50,12 @@ type SystemBrandProps = {
 export function SystemBrand(props: SystemBrandProps) {
   const { t } = useTranslation()
   const { status } = useStatus()
-  const { logo } = useSystemConfig()
+  const { logo, hasCustomLogo, systemName } = useSystemConfig()
+  const [failedLogo, setFailedLogo] = useState('')
+  const logoOnly = hasCustomLogo && failedLogo !== logo
 
   const variant = props.variant ?? 'sidebar'
-  const name = status?.system_name || props.defaultName || 'New API'
+  const name = status?.system_name || props.defaultName || systemName
   const version =
     status?.version || props.defaultVersion || t('Unknown version')
 
@@ -58,20 +63,25 @@ export function SystemBrand(props: SystemBrandProps) {
     return (
       <a
         href='/'
-        aria-label={t('Go to home')}
+        aria-label={name}
+        title={name}
         className={cn(
           'text-foreground inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-sm font-medium transition-colors outline-none select-none',
           'hover:bg-accent focus-visible:ring-ring/40 focus-visible:ring-2'
         )}
       >
-        <div className='flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-md'>
-          <img
+        <div className='flex h-6 min-w-5 shrink-0 items-center justify-center'>
+          <HeaderLogo
+            key={logo}
             src={logo}
-            alt={t('Logo')}
-            className='size-full rounded-md object-cover'
+            alt=''
+            loading={false}
+            logoLoaded
+            onError={() => setFailedLogo(logo)}
+            onLoad={() => setFailedLogo('')}
           />
         </div>
-        <span className='max-w-[12rem] truncate'>{name}</span>
+        {!logoOnly && <span className='max-w-[12rem] truncate'>{name}</span>}
       </a>
     )
   }
@@ -84,15 +94,22 @@ export function SystemBrand(props: SystemBrandProps) {
           className='hover:text-sidebar-foreground active:text-sidebar-foreground cursor-default hover:bg-transparent active:bg-transparent'
           render={<div />}
         >
-          <div className='flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg'>
-            <img
+          <div className='flex h-8 min-w-8 items-center justify-center group-data-[collapsible=icon]:w-8'>
+            <HeaderLogo
+              key={logo}
               src={logo}
-              alt={t('Logo')}
-              className='size-full rounded-lg object-cover'
+              alt={name}
+              loading={false}
+              logoLoaded
+              className='h-8 max-w-44 group-data-[collapsible=icon]:max-w-8'
+              onError={() => setFailedLogo(logo)}
+              onLoad={() => setFailedLogo('')}
             />
           </div>
           <div className='grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden'>
-            <span className='truncate font-semibold'>{name}</span>
+            {!logoOnly && (
+              <span className='truncate font-semibold'>{name}</span>
+            )}
             <span className='truncate text-xs'>{version}</span>
           </div>
         </SidebarMenuButton>

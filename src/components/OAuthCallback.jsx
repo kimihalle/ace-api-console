@@ -6,7 +6,7 @@ import { consumeOAuthLogin, OAUTH_LOGIN_KEY } from '../lib/auth-methods.js';
 import { SiteBrand } from './Identity.jsx';
 import AuthPage from './AuthPage.jsx';
 
-export default function OAuthCallback({ provider, onNavigate, onAuthenticated }) {
+export default function OAuthCallback({ provider, onNavigate, onAuthenticated, branding }) {
   useLanguage();
   const [error, setError] = useState('');
   const [challenge, setChallenge] = useState(null);
@@ -44,6 +44,6 @@ export default function OAuthCallback({ provider, onNavigate, onAuthenticated })
     }).catch((issue) => { if (active) setError(issue.message || t('请求失败，请稍后再试。')); });
     return () => { active = false; };
   }, [provider]);
-  if (challenge) return <AuthPage mode="login" initialChallenge={challenge} onNavigate={onNavigate} onAuthenticated={(user) => onAuthenticated(user, redirect)} />;
-  return <main className="auth-page"><section className="auth-form-side"><div className="auth-form-wrap"><div className="auth-inline-brand"><SiteBrand name={t('模型工作台')} onNavigate={onNavigate} /></div><div className="auth-title"><h2>{t(error ? '登录未完成' : '正在完成登录…')}</h2><p>{t('验证完成后将返回你的工作台。')}</p></div>{error ? <><div className="form-error" role="alert">{t(error)}</div><button className="auth-submit" onClick={() => onNavigate('/login')}>{t('返回登录')}</button></> : <p className="auth-status" role="status">{t('正在验证第三方授权…')}</p>}</div></section></main>;
+  if (challenge) return <AuthPage branding={branding} mode="login" initialChallenge={challenge} onNavigate={onNavigate} onAuthenticated={(user) => onAuthenticated(user, redirect)} />;
+  return <main className="auth-page"><section className="auth-form-side"><div className="auth-form-wrap"><div className="auth-inline-brand"><SiteBrand status={branding} onNavigate={onNavigate} /></div><div className="auth-title"><h2>{t(error ? '登录未完成' : '正在完成登录…')}</h2><p>{t('验证完成后将返回你的工作台。')}</p></div>{error ? <><div className="form-error" role="alert">{t(error)}</div><button className="auth-submit" onClick={() => onNavigate('/login')}>{t('返回登录')}</button></> : <p className="auth-status" role="status">{t('正在验证第三方授权…')}</p>}</div></section></main>;
 }

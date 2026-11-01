@@ -144,6 +144,7 @@ export type SiteSettings = {
   Notice: string
   SystemName: string
   Logo: string
+  Favicon: string
   Footer: string
   About: string
   HomePageContent: string

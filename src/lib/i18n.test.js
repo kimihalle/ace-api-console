@@ -12,7 +12,7 @@ test('language switching updates copy, valid Intl locales, CSV and configured la
   assert.equal(t('{count} 个模型', { count: 12 }), '12 models');
   assert.equal(t('第 {page} / {pages} 页', { page: 2, pages: 3 }), 'Page 2 of 3');
   assert.equal(usageColumns.map((column) => t(column))[0], 'Time');
-  assert.equal(usageCsvRow({ type: 2 }, {})[8], 'Succeeded');
+  assert.equal(usageCsvRow({ type: 2 }, {})[9], 'Succeeded');
   assert.deepEqual(availableMarketGroups({ default: 'Default group', custom: '自定义运营分组' }, { default: 1, custom: 0.5 }), [
     { value: 'default', label: 'Default group' }, { value: 'custom', label: '自定义运营分组' },
   ]);

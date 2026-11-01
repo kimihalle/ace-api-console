@@ -257,6 +257,11 @@ td strong { color: #36404d; }
 .key-field-wide { grid-column: 1 / -1; }
 .key-form .field-label { display: block; margin: 0 0 7px; font-size: 12px; }
 .key-form .form-input, .key-form .model-select__trigger { height: 39px; min-height: 39px; font-size: 12px; }
+.key-dialog .model-select__label-content { gap: 9px; }
+.key-group-icons { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.key-group-icon { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid #eee7e1; border-radius: 7px; background: #fff; color: #9a6652; font-size: 12px; font-weight: 600; }
+.key-group-icon svg, .key-group-icon img { display: block; width: 18px; height: 18px; object-fit: contain; }
+.key-group-icon.is-empty { color: #a99c93; background: #f7f4f1; }
 .key-form .modal-actions { margin-top: 4px; }
 .key-dialog .secret-field code { white-space: normal; overflow-wrap: anywhere; user-select: text; }
 .key-secret-row .key-preview { max-width: 100%; padding: 7px 9px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; user-select: text; }
@@ -1272,7 +1277,7 @@ td strong { color: #36404d; }
 .language-switcher .model-select__option { min-height: 36px; font-size: 12px; padding: 7px 10px; border-radius: 6px; }
 .auth-inline-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .site-brand-icon.has-site-image, .brand-mark.has-site-image { display: flex; align-items: center; width: max-content; min-width: 0; height: 36px; padding: 0; border: 0; border-radius: 0; background: transparent; transform: none; overflow: visible; }
-.site-brand-icon.has-site-image img, .brand-mark.has-site-image img { display: block; width: auto; height: auto; max-width: 88px; max-height: 100%; border-radius: 0; object-fit: contain; }
+.site-brand-icon.has-site-image img, .brand-mark.has-site-image img { display: block; width: auto; height: auto; max-width: min(180px, 32vw); max-height: 100%; border-radius: 0; object-fit: contain; }
 .auth-inline-brand .site-brand-icon.has-site-image { height: 42px; }
 .home-v2 .site-brand-icon.has-site-image { height: 36px; }
 .console-sidebar .brand-mark.console-brand-mark.has-site-image, .workspace-header .brand-mark.has-site-image { height: 28px; }

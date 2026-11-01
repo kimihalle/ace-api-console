@@ -3,6 +3,7 @@
 .model-select__trigger:hover, .model-select.is-open .model-select__trigger, .model-select__trigger:focus-visible { border-color: #cf6b4b; box-shadow: 0 0 0 3px rgba(207,107,75,.14); outline: none; }
 .model-select__trigger:disabled { cursor: not-allowed; opacity: .55; }
 .model-select__value { color: #292522; } .model-select__placeholder { color: #9c9186; }
+.model-select__label-content { display: inline-flex; align-items: center; min-width: 0; gap: 9px; }
 .model-select__chevron { width: 9px; height: 9px; margin-left: 12px; border-right: 1.5px solid #7d7065; border-bottom: 1.5px solid #7d7065; transform: rotate(45deg) translateY(-2px); transition: transform 160ms ease; }
 .model-select.is-open .model-select__chevron { transform: rotate(225deg) translate(-1px,-1px); }
 .model-select__menu { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; left: 0; max-height: 280px; overflow-y: auto; padding: 6px; border: 1px solid #e4dcd2; border-radius: 14px; background: #fffdfa; box-shadow: 0 18px 45px rgba(52,38,28,.14); animation: model-select-pop 130ms ease-out; }

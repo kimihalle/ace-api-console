@@ -27,6 +27,7 @@ export default function ModelSelect({
       value: item?.value ?? item?.id ?? item?.name ?? '',
       label: item?.label ?? item?.name ?? item?.value ?? '',
       group: item?.group,
+      icon: item?.icon,
       disabled: Boolean(item?.disabled),
       description: item?.description,
     };
@@ -103,7 +104,7 @@ export default function ModelSelect({
   return (
     <div ref={rootRef} className={`model-select ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()}>
       <button type="button" role="combobox" className="model-select__trigger" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} aria-label={ariaLabel} disabled={disabled} onClick={() => setOpen((current) => !current)} onKeyDown={onKeyDown}>
-        <span className={selected ? 'model-select__value' : 'model-select__placeholder'}>{selected?.label || placeholder}</span>
+        <span className={selected ? 'model-select__value model-select__label-content' : 'model-select__placeholder'}>{selected?.icon}<span>{selected?.label || placeholder}</span></span>
         <span className="model-select__chevron" aria-hidden="true" />
       </button>
       {open && <div id={listId} ref={listRef} className="model-select__menu" role="listbox" aria-label={ariaLabel} tabIndex={-1}>
@@ -111,7 +112,7 @@ export default function ModelSelect({
           <div className="model-select__group" key={row.key}>{row.label}</div>
         ) : (
           <button type="button" id={`${listId}-${row.index}`} key={row.key} data-index={row.index} role="option" tabIndex={-1} aria-selected={String(row.item.value) === String(value)} disabled={row.item.disabled} className={`model-select__option ${row.index === activeIndex ? 'is-active' : ''} ${String(row.item.value) === String(value) ? 'is-selected' : ''}`.trim()} onMouseEnter={() => setActiveIndex(row.index)} onClick={() => choose(row.item)}>
-            <span><span className="model-select__option-label">{row.item.label}</span>{row.item.description && <span className="model-select__option-description">{row.item.description}</span>}</span>
+            <span className="model-select__label-content">{row.item.icon}<span><span className="model-select__option-label">{row.item.label}</span>{row.item.description && <span className="model-select__option-description">{row.item.description}</span>}</span></span>
             {String(row.item.value) === String(value) && <span className="model-select__check" aria-hidden="true">✓</span>}
           </button>
         ))}

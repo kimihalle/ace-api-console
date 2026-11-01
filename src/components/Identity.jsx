@@ -2,7 +2,7 @@ import { t } from '../lib/i18n.js';
 import { useEffect, useState } from 'react';
 import { Network } from 'lucide-react';
 
-export function SiteLogo({ status, name = '', className = 'site-brand-icon' }) {
+export function SiteLogo({ status, className = 'site-brand-icon', onImageError, onImageLoad }) {
   const [failed, setFailed] = useState(false);
   const logo = status?.logo || status?.logo_url || status?.system_logo;
   const hasImage = Boolean(logo && !failed);
@@ -10,20 +10,23 @@ export function SiteLogo({ status, name = '', className = 'site-brand-icon' }) {
   useEffect(() => setFailed(false), [logo]);
 
   return <span className={`${className}${hasImage ? ' has-site-image' : ''}`} aria-hidden="true">
-    {logo && !failed ? <img src={logo} alt="" onError={() => setFailed(true)} /> : <Network size={18} />}
+    {logo && !failed ? <img src={logo} alt="" onLoad={onImageLoad} onError={() => { setFailed(true); onImageError?.(logo); }} /> : status && <Network size={18} />}
   </span>;
 }
 
-export function SiteBrand({ status, name, onNavigate, className = 'site-brand', suffix }) {
-  const displayName = name || status?.system_name || t("模型工作台");
-  return <a className={className} href="/" onClick={(event) => {
-    if (onNavigate) {
+export function SiteBrand({ status, name, onNavigate, className = 'site-brand', logoClassName, nameClassName, suffix }) {
+  const [failedLogo, setFailedLogo] = useState('');
+  const logo = status?.logo || status?.logo_url || status?.system_logo;
+  const logoOnly = Boolean(logo && failedLogo !== logo);
+  const displayName = name || (status ? status.system_name || t('模型工作台') : '');
+  return <a className={className} href="/" aria-label={displayName || t('首页')} aria-busy={!status} onClick={(event) => {
+    if (onNavigate && !event.button && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
       event.preventDefault();
       onNavigate('/');
     }
   }}>
-    <SiteLogo status={status} name={displayName} />
-    <span>{displayName}{suffix && <span className="brand-period">{suffix}</span>}</span>
+    {status && <SiteLogo key={logo} status={status} className={logoClassName} onImageError={setFailedLogo} onImageLoad={() => setFailedLogo('')} />}
+    {!logoOnly && <span className={nameClassName}>{displayName}{suffix && <span className="brand-period">{suffix}</span>}</span>}
   </a>;
 }
 

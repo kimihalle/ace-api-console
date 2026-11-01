@@ -28,6 +28,9 @@ import type { UpdateOptionRequest, UpdatePasskeyDomainsRequest } from '../types'
 
 // Configuration keys that require status refresh
 const STATUS_RELATED_KEYS = new Set([
+  'SystemName',
+  'Logo',
+  'Favicon',
   'HeaderNavModules',
   'SidebarModulesAdmin',
   'Notice',
@@ -61,6 +64,38 @@ export function useUpdateOption() {
       if (data.success) {
         // Always refresh system-options
         queryClient.invalidateQueries({ queryKey: ['system-options'] })
+
+        if (
+          [
+            'GroupDisplayOrder',
+            'GroupRatio',
+            'UserUsableGroups',
+            'GroupGroupRatio',
+          ].includes(variables.key)
+        ) {
+          void queryClient.invalidateQueries({ queryKey: ['pricing'] })
+          // The public console is a separate React app on the same origin.
+          try {
+            window.localStorage.setItem(
+              'ace-pricing-updated',
+              String(Date.now())
+            )
+          } catch {
+            /* Storage can be disabled. */
+          }
+          window.dispatchEvent(new Event('ace-pricing-updated'))
+        }
+        if (['SystemName', 'Logo', 'Favicon'].includes(variables.key)) {
+          try {
+            window.localStorage.setItem(
+              'ace-branding-updated',
+              String(Date.now())
+            )
+          } catch {
+            /* Storage can be disabled. */
+          }
+          window.dispatchEvent(new Event('ace-branding-updated'))
+        }
 
         // If updating frontend-display-related config, also refresh status
         if (STATUS_RELATED_KEYS.has(variables.key)) {

@@ -10,6 +10,10 @@
   "Unable to load preview": "Unable to load preview",
   "This removes the stored source and its hourly result permanently.": "This removes the stored source and its hourly result permanently.",
   "translation": {
+    "Favicon URL": "Favicon URL",
+    "Website name used in browser titles on both the site and admin console": "Website name used in browser titles on both the site and admin console",
+    "Header logo image. When configured, only the logo is displayed without the website name.": "Header logo image. When configured, only the logo is displayed without the website name.",
+    "Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.": "Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.",
     "Group display order": "Group display order",
     "Display order only. Pricing and automatic routing are unchanged.": "Display order only. Pricing and automatic routing are unchanged.",
     "Group display order must contain unique non-empty group names": "Group display order must contain unique non-empty group names",

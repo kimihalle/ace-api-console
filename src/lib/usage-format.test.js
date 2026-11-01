@@ -36,13 +36,13 @@ test('cache writes use the normalized total, then split TTLs, without double cou
 test('subscription use and zero consumption are not replaced by the wallet quota', () => {
   const row = { type: 2, quota: 500000, other: { billing_source: 'subscription', subscription_consumed: 0 } };
   assert.equal(logUsage(row).quota, 0);
-  assert.equal(usageCsvRow(row, {})[7], '$0.00');
+  assert.equal(usageCsvRow(row, {})[8], '$0.00');
 });
 
 test('exports share server filtering, column order and protect spreadsheet formulas', () => {
   assert.equal(usageLogQuery('start_timestamp=123').get('usage_only'), 'true');
-  const cells = usageCsvRow({ type: 2, model_name: '=cmd()', prompt_tokens: 11, completion_tokens: 53, quota: 1371 }, {});
-  assert.deepEqual(cells.slice(2), ['11', '53', '0', '0', '1371', '$0.002742', '成功']);
+  const cells = usageCsvRow({ type: 2, model_name: '=cmd()', group: 'vip', prompt_tokens: 11, completion_tokens: 53, quota: 1371 }, {});
+  assert.deepEqual(cells.slice(2), ['vip', '11', '53', '0', '0', '1371', '$0.002742', '成功']);
   assert.match(csvLine(cells), /"'=cmd\(\)"/);
 });
 

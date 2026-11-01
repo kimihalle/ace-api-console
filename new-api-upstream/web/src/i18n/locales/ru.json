@@ -10,6 +10,10 @@
   "Unable to load preview": "Не удалось загрузить предпросмотр",
   "This removes the stored source and its hourly result permanently.": "Исходный код и результат за этот час будут удалены навсегда.",
   "translation": {
+    "Favicon URL": "URL значка сайта",
+    "Website name used in browser titles on both the site and admin console": "Название сайта в заголовках вкладок сайта и панели администратора",
+    "Header logo image. When configured, only the logo is displayed without the website name.": "Логотип в шапке. Если задан, отображается только логотип без названия сайта.",
+    "Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.": "Значок вкладок сайта и панели администратора задаётся отдельно от логотипа. Оставьте пустым для стандартного значка.",
     "Group display order": "Порядок отображения групп",
     "Display order only. Pricing and automatic routing are unchanged.": "Меняется только порядок отображения, без изменения тарифов и автоматической маршрутизации.",
     "Group display order must contain unique non-empty group names": "Названия групп должны быть уникальными и непустыми",

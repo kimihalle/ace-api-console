@@ -45,3 +45,25 @@ func TestGetStatusAdvertisesDefaultDashboard(t *testing.T) {
 	assert.True(t, payload.Success)
 	assert.Equal(t, "default", payload.Data["theme"])
 }
+
+func TestGetStatusSeparatesWebsiteNameLogoAndFavicon(t *testing.T) {
+	previousName, previousLogo, previousIcon := common.SystemName, common.Logo, common.Favicon
+	t.Cleanup(func() { common.SystemName, common.Logo, common.Favicon = previousName, previousLogo, previousIcon })
+	common.SystemName, common.Logo, common.Favicon = "25code", "https://example.test/wide.svg", "https://example.test/tab.png"
+	for _, favicon := range []string{"https://example.test/tab.png", ""} {
+		common.Favicon = favicon
+		response := httptest.NewRecorder()
+		context, _ := gin.CreateTestContext(response)
+		context.Request = httptest.NewRequest(http.MethodGet, "/api/status", nil)
+		GetStatus(context)
+		var payload struct {
+			Success bool           `json:"success"`
+			Data    map[string]any `json:"data"`
+		}
+		require.NoError(t, common.Unmarshal(response.Body.Bytes(), &payload))
+		require.True(t, payload.Success)
+		require.Equal(t, "25code", payload.Data["system_name"])
+		require.Equal(t, "https://example.test/wide.svg", payload.Data["logo"])
+		require.Equal(t, favicon, payload.Data["favicon"])
+	}
+}

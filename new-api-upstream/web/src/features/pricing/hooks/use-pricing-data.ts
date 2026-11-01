@@ -16,15 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
 
 import { useStatus } from '@/hooks/use-status'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { getPricing } from '../api'
+import { EXCLUDED_GROUPS } from '../constants'
 
 export function usePricingData(enabled = true) {
+  const queryClient = useQueryClient()
   const { status } = useStatus()
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -33,6 +35,39 @@ export function usePricingData(enabled = true) {
     staleTime: 5 * 60 * 1000,
     enabled,
   })
+
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      if (
+        event instanceof StorageEvent &&
+        event.key !== 'ace-pricing-updated'
+      ) {
+        return
+      }
+      void queryClient.invalidateQueries({ queryKey: ['pricing'] })
+    }
+    window.addEventListener('storage', refresh)
+    window.addEventListener('ace-pricing-updated', refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener('ace-pricing-updated', refresh)
+    }
+  }, [queryClient])
+
+  const availableGroups = useMemo(() => {
+    const groups = Object.keys(data?.usable_group ?? {}).filter(
+      (name) => !EXCLUDED_GROUPS.includes(name)
+    )
+    const positions = new Map<string, number>()
+    for (const name of data?.group_display_order ?? []) {
+      if (!positions.has(name)) positions.set(name, positions.size)
+    }
+    return groups.sort(
+      (a, b) =>
+        (positions.get(a) ?? positions.size) -
+        (positions.get(b) ?? positions.size)
+    )
+  }, [data?.usable_group, data?.group_display_order])
 
   // Ensure rates never reach zero to prevent division errors
   const priceRate = useMemo(
@@ -69,6 +104,7 @@ export function usePricingData(enabled = true) {
     vendors: data?.vendors ?? [],
     groupRatio: data?.group_ratio ?? {},
     usableGroup: data?.usable_group ?? {},
+    availableGroups,
     endpointMap: data?.supported_endpoint ?? {},
     autoGroups: data?.auto_groups ?? [],
     isLoading,

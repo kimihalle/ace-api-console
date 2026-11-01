@@ -10,6 +10,10 @@
   "Unable to load preview": "プレビューを読み込めません",
   "This removes the stored source and its hourly result permanently.": "ソースコードと対応する時間の記録を完全に削除します。",
   "translation": {
+    "Favicon URL": "ファビコンのURL",
+    "Website name used in browser titles on both the site and admin console": "サイトと管理画面のブラウザータブのタイトルに使用するサイト名",
+    "Header logo image. When configured, only the logo is displayed without the website name.": "ヘッダーのロゴ画像。設定するとサイト名を重複表示せず、ロゴのみを表示します。",
+    "Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.": "サイトと管理画面共通のタブアイコン。ロゴとは別に設定します。空欄の場合は既定のアイコンを使用します。",
     "Group display order": "グループの表示順",
     "Display order only. Pricing and automatic routing are unchanged.": "表示順のみ変更します。料金と自動ルーティングには影響しません。",
     "Group display order must contain unique non-empty group names": "グループ名は空欄や重複を含めることはできません",

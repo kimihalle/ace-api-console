@@ -10,6 +10,10 @@
   "Unable to load preview": "Impossible de charger l’aperçu",
   "This removes the stored source and its hourly result permanently.": "Le code source et son résultat horaire seront supprimés définitivement.",
   "translation": {
+    "Favicon URL": "URL du favicon",
+    "Website name used in browser titles on both the site and admin console": "Nom du site utilisé dans les titres des onglets du site et de la console",
+    "Header logo image. When configured, only the logo is displayed without the website name.": "Logo de l’en-tête. Lorsqu’il est configuré, seul le logo apparaît, sans le nom du site.",
+    "Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.": "Icône des onglets du site et de la console, indépendante du logo. Laisser vide pour utiliser l’icône par défaut.",
     "Group display order": "Ordre d’affichage des groupes",
     "Display order only. Pricing and automatic routing are unchanged.": "Modifie uniquement l’affichage, sans changer la tarification ni le routage automatique.",
     "Group display order must contain unique non-empty group names": "Les noms des groupes doivent être uniques et non vides",

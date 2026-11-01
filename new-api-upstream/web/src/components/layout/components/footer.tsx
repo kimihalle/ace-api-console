@@ -17,12 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'
+
+import { HeaderLogo } from './header-logo'
 
 interface FooterLink {
   text: string
@@ -154,12 +156,15 @@ export function Footer(props: FooterProps) {
   const {
     systemName,
     logo: systemLogo,
+    hasCustomLogo,
     footerHtml,
     demoSiteEnabled,
   } = useSystemConfig()
 
   const displayLogo = systemLogo || props.logo || '/logo.png'
   const displayName = systemName || props.name || 'New API'
+  const [failedLogo, setFailedLogo] = useState('')
+  const logoOnly = hasCustomLogo && failedLogo !== displayLogo
   const isDemoSiteMode = Boolean(demoSiteEnabled)
   const currentYear = new Date().getFullYear()
 
@@ -254,15 +259,26 @@ export function Footer(props: FooterProps) {
         <div className='flex flex-col justify-between gap-10 md:flex-row md:gap-16'>
           {/* Brand column */}
           <div className='shrink-0'>
-            <Link to='/' className='group flex items-center gap-2.5'>
-              <img
+            <Link
+              to='/'
+              aria-label={displayName}
+              className='group flex items-center gap-2.5'
+            >
+              <HeaderLogo
+                key={displayLogo}
                 src={displayLogo}
-                alt={displayName}
-                className='size-7 rounded-lg object-contain'
+                alt=''
+                loading={false}
+                logoLoaded
+                className='h-7'
+                onError={() => setFailedLogo(displayLogo)}
+                onLoad={() => setFailedLogo('')}
               />
-              <span className='text-sm font-semibold tracking-tight'>
-                {displayName}
-              </span>
+              {!logoOnly && (
+                <span className='text-sm font-semibold tracking-tight'>
+                  {displayName}
+                </span>
+              )}
             </Link>
             <p className='text-muted-foreground/60 mt-3 max-w-[200px] text-xs leading-relaxed'>
               {t('Powerful API Management Platform')}
@@ -272,14 +288,14 @@ export function Footer(props: FooterProps) {
           {/* Links columns */}
           {isDemoSiteMode && (
             <div className='grid grid-cols-3 gap-8 md:gap-16'>
-              {displayColumns.map((column, index) => (
-                <div key={index}>
+              {displayColumns.map((column) => (
+                <div key={column.title}>
                   <p className='text-muted-foreground/50 mb-3 text-xs font-medium tracking-wider uppercase'>
                     {t(column.title)}
                   </p>
                   <ul className='space-y-2.5'>
-                    {column.links.map((link, linkIndex) => (
-                      <li key={linkIndex}>
+                    {column.links.map((link) => (
+                      <li key={link.href}>
                         <FooterLinkItem link={link} />
                       </li>
                     ))}

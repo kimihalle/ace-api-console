@@ -51,6 +51,7 @@ const _systemInfoSchema = z.object({
   ServerAddress: z.string().optional(),
   TaskPublicAddress: z.string().refine(isValidTaskPublicAddress),
   Logo: z.string().url().optional().or(z.literal('')),
+  Favicon: z.string().url().optional().or(z.literal('')),
   Footer: z.string().optional(),
   About: z.string().optional(),
   HomePageContent: z.string().optional(),
@@ -83,6 +84,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     ServerAddress: normalizeValue(defaultValues.ServerAddress),
     TaskPublicAddress: normalizeValue(defaultValues.TaskPublicAddress),
     Logo: normalizeValue(defaultValues.Logo),
+    Favicon: normalizeValue(defaultValues.Favicon),
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
     HomePageContent: normalizeValue(defaultValues.HomePageContent),
@@ -107,6 +109,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
         ),
     }),
     Logo: z.string().url().optional().or(z.literal('')),
+    Favicon: z.string().url().optional().or(z.literal('')),
     Footer: z.string().optional(),
     About: z.string().optional(),
     HomePageContent: z.string().optional(),
@@ -166,7 +169,9 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                       <Input placeholder={t('New API')} {...field} />
                     </FormControl>
                     <FormDescription>
-                      {t('The name displayed across the application')}
+                      {t(
+                        'Website name used in browser titles on both the site and admin console'
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -227,7 +232,31 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                       />
                     </FormControl>
                     <FormDescription>
-                      {t('URL to your logo image (optional)')}
+                      {t(
+                        'Header logo image. When configured, only the logo is displayed without the website name.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='Favicon'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Favicon URL')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='https://example.com/favicon.ico'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Browser tab icon for both the site and admin console, independent of the logo. Leave empty to use the default icon.'
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

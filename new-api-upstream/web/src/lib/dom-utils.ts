@@ -16,16 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export function applyFaviconToDom(url: string) {
-  if (typeof document === 'undefined' || !url) return
+import { DEFAULT_FAVICON } from '@/lib/constants'
+
+export function applyFaviconToDom(url: string = '') {
+  if (typeof document === 'undefined') return
+  const icon = url || DEFAULT_FAVICON
   try {
-    const next = new URL(url, window.location.href).href
+    const next = new URL(icon, window.location.href).href
     const existing =
       document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]')
     if (existing.length === 1 && existing[0].href === next) return
     const link = document.createElement('link')
     link.rel = 'icon'
-    link.href = url
+    link.href = icon
     existing.forEach((l) => l.remove())
     document.head.appendChild(link)
   } catch {

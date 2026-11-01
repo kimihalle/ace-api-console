@@ -86,6 +86,7 @@ export function PublicHeader(props: PublicHeaderProps) {
   const {
     systemName,
     logo: systemLogo,
+    hasCustomLogo,
     loading,
     logoLoaded,
   } = useSystemConfig()
@@ -97,14 +98,20 @@ export function PublicHeader(props: PublicHeaderProps) {
   const user = auth.user
   const isAuthenticated = !!user
   const displaySiteName = customSiteName || systemName
+  const [failedLogo, setFailedLogo] = useState('')
+  const logoOnly =
+    Boolean(customLogo) || (hasCustomLogo && failedLogo !== systemLogo)
   const links = dynamicLinks.length > 0 ? dynamicLinks : navLinks
 
   let logoContent: ReactNode = (
     <HeaderLogo
+      key={systemLogo}
       src={systemLogo}
       loading={loading}
       logoLoaded={logoLoaded}
-      className='size-full rounded-lg object-contain'
+      alt=''
+      onError={() => setFailedLogo(systemLogo)}
+      onLoad={() => setFailedLogo('')}
     />
   )
   if (customLogo) logoContent = customLogo
@@ -218,21 +225,24 @@ export function PublicHeader(props: PublicHeaderProps) {
             <div className='@container/system-brand flex min-w-0 flex-1 items-center gap-1 lg:min-w-36'>
               <a
                 href={homeUrl === '/' ? '/' : homeUrl}
+                aria-label={displaySiteName}
                 className='group flex min-w-0 items-center gap-2.5'
               >
-                <div className='flex size-7 shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105'>
+                <div className='flex h-7 min-w-7 shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105'>
                   {logoContent}
                 </div>
-                <span
-                  className='max-w-48 truncate text-sm font-semibold tracking-tight'
-                  title={displaySiteName}
-                >
-                  {loading ? (
-                    <Skeleton className='h-4 w-16' />
-                  ) : (
-                    displaySiteName
-                  )}
-                </span>
+                {!logoOnly && (
+                  <span
+                    className='max-w-48 truncate text-sm font-semibold tracking-tight'
+                    title={displaySiteName}
+                  >
+                    {loading ? (
+                      <Skeleton className='h-4 w-16' />
+                    ) : (
+                      displaySiteName
+                    )}
+                  </span>
+                )}
               </a>
               <SystemUpdateAction presentation='version' />
             </div>

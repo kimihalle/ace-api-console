@@ -7,6 +7,15 @@ const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; clearAccessToken(); });
 const response = (data) => new Response(JSON.stringify({ success: true, data }), { headers: { 'Content-Type': 'application/json' } });
 
+test('pricing refresh bypasses browser caches and preserves the explicit group display order', async () => {
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, '/api/pricing');
+    assert.equal(init.cache, 'no-store');
+    return new Response(JSON.stringify({ success: true, group_display_order: ['vip', 'default'], data: [] }), { headers: { 'Content-Type': 'application/json' } });
+  };
+  assert.deepEqual((await newApi.pricing()).group_display_order, ['vip', 'default']);
+});
+
 test('email APIs encode the address and security token and never attach an authenticated bearer', async () => {
   const calls = [];
   globalThis.fetch = async (url, init) => { calls.push({ url, init }); return response({}); };

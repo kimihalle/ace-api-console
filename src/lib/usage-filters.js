@@ -21,6 +21,7 @@ export function usageFilterQuery(range = '24h', filters = {}, now = new Date()) 
   }
   const params = new URLSearchParams({ start_timestamp: String(start), end_timestamp: String(finish) });
   if (filters.model?.trim()) params.set('model_name', filters.model.trim());
+  if (filters.group?.trim()) params.set('group', filters.group.trim());
   if (filters.status === 'success') params.set('type', '2');
   if (filters.status === 'failed') params.set('type', '5');
   return params;

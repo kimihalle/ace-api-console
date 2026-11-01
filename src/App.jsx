@@ -10,13 +10,13 @@ import { apiBaseLabel, clearAccessToken, login, logout, newApi, newApiConsoleUrl
 import { PublicHome } from './components/PublicPages.jsx';
 import AuthPage from './components/AuthPage.jsx';
 import OAuthCallback from './components/OAuthCallback.jsx';
-import { AccountAvatar, SiteLogo } from './components/Identity.jsx';
+import { AccountAvatar, SiteBrand } from './components/Identity.jsx';
 import ModelSelect from './components/ModelSelect.jsx';
 import ModelMarketplace from './components/ModelMarketplace.jsx';
 import PelicanSamples from './components/PelicanSamples.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
 import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageColumns, usageCsvRow, csvLine } from './lib/usage-format.js';
-import { availableMarketGroups } from './lib/model-marketplace.js';
+import { availableMarketGroups, marketGroupVendors } from './lib/model-marketplace.js';
 import { consolePage, consolePath, consoleReturnPath, isConsolePath } from './lib/routes.js';
 import { useLanguage } from './lib/use-language.js';
 import LanguageSwitcher from './components/LanguageSwitcher.jsx';
@@ -32,6 +32,8 @@ import UsageTrend from './components/UsageTrend.jsx';
 import UsageFilters from './components/UsageFilters.jsx';
 import PurchaseStore from './components/PurchaseStore.jsx';
 import { usageFilterQuery } from './lib/usage-filters.js';
+import { applySiteBranding, cacheSiteBranding, readCachedBranding } from './lib/site-branding.js';
+import VendorIcon from './components/VendorIcon.jsx';
 
 const navItems = [
   { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
@@ -146,7 +148,7 @@ function App() {
   const [userSummary, setUserSummary] = useState(null);
   const [usageRows, setUsageRows] = useState([]);
   const [usageRange, setUsageRange] = useState('24h');
-  const [usageFilters, setUsageFilters] = useState({ model: '', status: 'all', startDate: '', endDate: '' });
+  const [usageFilters, setUsageFilters] = useState({ model: '', group: '', status: 'all', startDate: '', endDate: '' });
   const [usagePage, setUsagePage] = useState(1);
   const [usageTotal, setUsageTotal] = useState(0);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -162,6 +164,9 @@ function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [siteStatus, setSiteStatus] = useState(null);
+  const [cachedBranding] = useState(readCachedBranding);
+  const siteBranding = siteStatus || cachedBranding;
+  useEffect(() => { applySiteBranding(siteBranding, route); }, [siteBranding, route, language]);
   const [siteNotice, setSiteNotice] = useState('');
   const [pricingCatalog, setPricingCatalog] = useState({ vendors: [], usable_group: {}, group_ratio: {}, supported_endpoint: {} });
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -170,7 +175,16 @@ function App() {
   const [keyGroup, setKeyGroup] = useState('');
   const workspaceNavRef = useRef(null);
   const groups = useMemo(() => availableMarketGroups(pricingCatalog.usable_group, pricingCatalog.group_ratio, pricingCatalog.group_display_order), [pricingCatalog, language]);
-  const keyGroupOptions = useMemo(() => groups.map(({ value, label }) => ({ value, label })), [groups]);
+  const keyGroupOptions = useMemo(() => groups.map(({ value, label }) => {
+    const brands = marketGroupVendors(userModels, value).slice(0, 3);
+    return {
+      value,
+      label,
+      icon: <span className="key-group-icons" role="img" aria-label={brands.map((brand) => brand.name).join('、') || t('暂无可用模型')}>
+        {brands.length ? brands.map((brand) => <span className="key-group-icon" key={`${brand.name}-${brand.icon}`} aria-hidden="true"><VendorIcon name={brand.icon} fallback={brand.name.slice(0, 1)} size={18} /></span>) : <span className="key-group-icon is-empty" aria-hidden="true"><Activity size={16} /></span>}
+      </span>,
+    };
+  }), [groups, userModels, language]);
   const announcements = useAnnouncements({ userId: inConsole && !authLoading ? authUser?.id : null, status: siteStatus, notice: siteNotice, blocked: Boolean(modal) || page === 'plans' });
 
   useEffect(() => {
@@ -189,21 +203,39 @@ function App() {
   useEffect(() => {
     let active = true;
     let inFlight = false;
+    let refreshAgain = false;
     const refresh = async () => {
-      if (!active || inFlight || document.hidden) return;
+      if (!active || document.hidden) return;
+      if (inFlight) { refreshAgain = true; return; }
       inFlight = true;
       try {
-        const [status, notice] = await Promise.allSettled([newApi.publicStatus(), newApi.notice()]);
-        if (!active) return;
-        if (status.status === 'fulfilled') setSiteStatus(status.value);
-        if (notice.status === 'fulfilled') setSiteNotice(typeof notice.value === 'string' ? notice.value : '');
-      } finally { inFlight = false; }
+        await Promise.allSettled([
+          newApi.publicStatus().then((status) => {
+            if (!active) return;
+            cacheSiteBranding(status);
+            setSiteStatus(status);
+          }),
+          newApi.notice().then((notice) => { if (active) setSiteNotice(typeof notice === 'string' ? notice : ''); }),
+        ]);
+      } finally {
+        inFlight = false;
+        if (refreshAgain && active && !document.hidden) {
+          refreshAgain = false;
+          refresh();
+        }
+      }
+    };
+    const refreshBranding = (event) => {
+      if (event instanceof StorageEvent && event.key !== 'ace-branding-updated') return;
+      refresh();
     };
     refresh();
     window.addEventListener('focus', refresh);
+    window.addEventListener('storage', refreshBranding);
+    window.addEventListener('ace-branding-updated', refreshBranding);
     document.addEventListener('visibilitychange', refresh);
     const timer = window.setInterval(refresh, 60000);
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); window.removeEventListener('storage', refreshBranding); window.removeEventListener('ace-branding-updated', refreshBranding); document.removeEventListener('visibilitychange', refresh); };
   }, []);
 
   useEffect(() => {
@@ -241,7 +273,8 @@ function App() {
     let inFlight = false;
     setCatalogLoading(true);
     const refreshCatalog = async () => {
-      if (inFlight || !active) return;
+      if (!active) return;
+      if (inFlight) { refreshAgain = true; return; }
       inFlight = true;
       try {
         const [modelResult, pricingResult] = await Promise.allSettled([newApi.userModels(), newApi.pricing()]);
@@ -252,18 +285,29 @@ function App() {
         setPricingCatalog({ vendors: pricing?.vendors || [], usable_group: pricing?.usable_group || {}, group_ratio: pricing?.group_ratio || {}, group_display_order: pricing?.group_display_order || [], supported_endpoint: pricing?.supported_endpoint || {} });
         setCatalogError(!pricing);
         setCatalogLoading(false);
-      } finally { inFlight = false; }
+      } finally {
+        inFlight = false;
+        if (refreshAgain && active) {
+          refreshAgain = false;
+          refreshCatalog();
+        }
+      }
     };
     const refreshVisible = () => { if (!document.hidden) refreshCatalog(); };
+    const onPricingUpdated = (event) => { if (!event.key || event.key === 'ace-pricing-updated') refreshVisible(); };
     refreshCatalog();
     window.addEventListener('focus', refreshVisible);
     document.addEventListener('visibilitychange', refreshVisible);
+    window.addEventListener('storage', onPricingUpdated);
+    window.addEventListener('ace-pricing-updated', onPricingUpdated);
     const timer = page === 'models' ? window.setInterval(refreshVisible, 60000) : null;
     return () => {
       active = false;
       window.clearInterval(timer);
       window.removeEventListener('focus', refreshVisible);
       document.removeEventListener('visibilitychange', refreshVisible);
+      window.removeEventListener('storage', onPricingUpdated);
+      window.removeEventListener('ace-pricing-updated', onPricingUpdated);
     };
   }, [route, authUser?.id, authUser?.group, page === 'models']);
 
@@ -424,9 +468,9 @@ function App() {
     go('/');
   };
 
-  if (route === '/') return <PublicHome onNavigate={go} />;
-  if (/^\/oauth\/[a-zA-Z0-9_-]+\/?$/.test(route)) return <OAuthCallback key={route} provider={route.split('/')[2]} onNavigate={go} onAuthenticated={(user, destination) => { setAuthUser(user); go(destination); }} />;
-  if (['/login', '/register', '/forgot-password', '/user/reset', '/reset'].includes(route)) return <AuthPage key={route} mode={route === '/user/reset' || route === '/reset' ? 'reset' : route.slice(1)} onNavigate={go} onAuthenticated={(user) => { setAuthUser(user); go(consoleReturnPath(window.location.search)); }} />;
+  if (route === '/') return <PublicHome onNavigate={go} status={siteStatus} branding={siteBranding} />;
+  if (/^\/oauth\/[a-zA-Z0-9_-]+\/?$/.test(route)) return <OAuthCallback key={route} branding={siteBranding} provider={route.split('/')[2]} onNavigate={go} onAuthenticated={(user, destination) => { setAuthUser(user); go(destination); }} />;
+  if (['/login', '/register', '/forgot-password', '/user/reset', '/reset'].includes(route)) return <AuthPage key={route} branding={siteBranding} mode={route === '/user/reset' || route === '/reset' ? 'reset' : route.slice(1)} onNavigate={go} onAuthenticated={(user) => { setAuthUser(user); go(consoleReturnPath(window.location.search)); }} />;
   if (route === '/admin') return <RouteLoading />;
   if (inConsole && (authLoading || !authUser)) return <RouteLoading />;
   if (!inConsole || !authUser) return <PublicHome onNavigate={go} />;
@@ -701,7 +745,7 @@ function App() {
     <div className="app-shell console-shell console-topnav">
       <header className="workspace-header">
         <div className="workspace-header-main">
-          <button className="brand" onClick={() => { setWorkspaceMenuOpen(false); go('/'); }} aria-label={t("返回首页")}><SiteLogo status={siteStatus} className="brand-mark console-brand-mark" /><span className="brand-word">{siteStatus?.system_name || t("模型工作台")}</span></button>
+          <SiteBrand status={siteBranding} className="brand" logoClassName="brand-mark console-brand-mark" nameClassName="brand-word" onNavigate={() => { setWorkspaceMenuOpen(false); go('/'); }} />
           <nav ref={workspaceNavRef} id="workspace-navigation" className={`workspace-nav ${workspaceMenuOpen ? 'is-open' : ''}`} aria-label={t("工作区导航")}>{visibleNavItems.map(({ id, label }) => <a key={id} href={consolePath(id)} className={`workspace-nav-link ${page === id ? 'active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={(event) => { if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}><span>{t(label)}</span></a>)}</nav>
           <div className="workspace-header-actions">
             <LanguageSwitcher />
@@ -720,7 +764,7 @@ function App() {
         {backendError && <div className="backend-error-banner"><CircleHelp size={16} /><span>{t(backendError)}</span><button onClick={() => setBackendError('')}>{t("关闭")}</button></div>}
         {page === 'dashboard' && <Dashboard user={authUser} status={siteStatus} summary={userSummary} announcements={announcements.items} onAnnouncement={announcements.show} onNavigate={navigate} onToast={notify} referralCode={referralCode} referralLoading={referralLoading} referralError={referralError} onReferralRetry={() => setReferralRevision((value) => value + 1)} onReferralCopy={copyReferral} onReferralTransfer={() => { setReferralTransferError(''); setModal('transfer-referral'); }} />}
         {page === 'redeem' && <Redeem value={redeem} enabled={topUpInfo?.enable_redemption !== false} onChange={setRedeem} onSubmit={redeemCode} />}
-        {page === 'usage' && <Usage data={userSummary?.usage} status={siteStatus} rows={usageRows} range={usageRange} onRange={(value) => { setUsageRange(value); setUsagePage(1); }} filters={usageFilters} models={userModels} onApplyFilters={(filters, range) => { setUsageFilters(filters); setUsageRange(range); setUsagePage(1); }} page={usagePage} total={usageTotal} loading={usageLoading} onPage={setUsagePage} onExport={exportUsage} exportBusy={exportBusy} />}
+        {page === 'usage' && <Usage data={userSummary?.usage} status={siteStatus} rows={usageRows} range={usageRange} onRange={(value) => { setUsageRange(value); setUsagePage(1); }} filters={usageFilters} models={userModels} groups={groups} onApplyFilters={(filters, range) => { setUsageFilters(filters); setUsageRange(range); setUsagePage(1); }} page={usagePage} total={usageTotal} loading={usageLoading} onPage={setUsagePage} onExport={exportUsage} exportBusy={exportBusy} />}
         {page === 'keys' && <Keys keys={keys} search={keySearch} onSearch={(value) => { setKeySearch(value); setKeyPage(1); }} page={keyPage} total={keyTotal} loading={keyLoading} onPage={setKeyPage} onConfigure={openKeyConfig} onReveal={revealKey} onCopy={copyKey} onToggle={toggleKey} onDelete={removeKey} onToast={notify} catalog={userModels} status={siteStatus} catalogLoading={catalogLoading} />}
         {page === 'bills' && <Bills rows={billRows} page={billPage} total={billTotal} loading={billLoading} onPage={setBillPage} />}
         {page === 'models' && <ModelMarketplace models={userModels} groups={groups} catalog={pricingCatalog} quota={authUser?.quota} userGroup={authUser?.group} status={siteStatus} loading={catalogLoading} error={catalogError} onToast={notify} />}
@@ -865,7 +909,7 @@ function UsageLegacy({ data, rows, onToast }) {
     <section className="panel table-panel"><SectionTitle title="最近调用" detail="最近的模型请求记录" action={<button className="button outline small" onClick={() => onToast('请在日志页面导出完整记录')}><FileText size={15} />导出指引</button>} /><div className="table-wrap"><table><thead><tr><th>模型</th><th>时间</th><th>输入 / 输出 Tokens</th><th>额度</th><th>状态</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row.id ?? index}>{labels(row).map((cell, cellIndex) => <td key={cellIndex}>{cellIndex === 0 ? <strong className="mono">{cell}</strong> : cellIndex === 4 ? <span className={`status-pill ${cell === '成功' ? 'success' : 'muted'}`}>{cell}</span> : cell}</td>)}</tr>)}</tbody></table></div>{!rows.length && <div className="table-empty">当前没有调用记录</div>}</section></div>;
 }
 
-function Usage({ data, status: siteStatus, rows, range, onRange, filters, models, onApplyFilters, page, total, loading, onPage, onExport, exportBusy }) {
+function Usage({ data, status: siteStatus, rows, range, onRange, filters, models, groups, onApplyFilters, page, total, loading, onPage, onExport, exportBusy }) {
   const stats = data && typeof data === 'object' ? data : {};
   const pageCount = Math.max(1, Math.ceil(total / 20));
   return <div className="page-stack">
@@ -877,13 +921,14 @@ function Usage({ data, status: siteStatus, rows, range, onRange, filters, models
     <UsageTrend status={siteStatus} />
     <section className="panel table-panel usage-table-panel">
       <SectionTitle title={t("调用记录")} detail={t("共 {v0} 条记录", { v0: total.toLocaleString(getLocale()) })} action={<div className="usage-controls"><div className="segmented" aria-label={t("统计周期")}>{[['24h', t("24 小时")], ['7d', t("7 天")], ['30d', t("30 天")]].map(([value, label]) => <button key={value} className={range === value ? 'selected' : ''} onClick={() => onRange(value)}>{label}</button>)}</div><button className="button outline small" onClick={onExport} disabled={exportBusy}><Download size={15} />{exportBusy ? t("正在导出") : t("导出")}</button></div>} />
-      <UsageFilters filters={filters} range={range} models={models} onApply={onApplyFilters} />
-      <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageColumns.map((label, index) => <th key={label} scope="col" className={index >= 2 && index <= 7 ? 'numeric' : ''} title={index === 6 ? t("实际扣除的内部额度；订阅请求使用订阅扣费额度") : index === 7 ? t("按站点额度单位换算的消费，保留本次请求的计费结果") : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
+      <UsageFilters filters={filters} range={range} models={models} groups={groups} onApply={onApplyFilters} />
+      <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageColumns.map((label, index) => <th key={label} scope="col" className={index >= 3 && index <= 8 ? 'numeric' : ''} title={index === 7 ? t("实际扣除的内部额度；订阅请求使用订阅扣费额度") : index === 8 ? t("按站点额度单位换算的消费，保留本次请求的计费结果") : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
         const usage = logUsage(row);
         const failed = Number(row.type) === 5;
         return <tr key={row.id ?? `${row.created_at}-${index}`}>
           <td className="usage-time">{logDate(row.created_at)}</td>
           <td><strong className="mono usage-model" title={row.model_name}>{row.model_name || '—'}</strong></td>
+          <td><span className="soft-tag usage-group" title={row.group || undefined}>{row.group || '—'}</span></td>
           <td className="numeric">{usage.input == null ? '—' : summaryValueFor(usage.input)}</td>
           <td className="numeric">{usage.output == null ? '—' : summaryValueFor(usage.output)}</td>
           <td className="numeric">{usage.cacheWrite == null ? '—' : summaryValueFor(usage.cacheWrite)}</td>

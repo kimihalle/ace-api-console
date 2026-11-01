@@ -200,7 +200,7 @@ export const newApi = {
   affiliateCode: () => request('/user/aff'),
   transferAffiliate: (quota) => request('/user/aff_transfer', { method: 'POST', body: JSON.stringify({ quota }) }),
   userModels: () => request('/user/models'),
-  pricing: () => request('/pricing', { unwrapData: false }),
+  pricing: () => request('/pricing', { unwrapData: false, cache: 'no-store' }),
   modelMetricsSummary: (query = '?hours=8') => request(`/perf-metrics/summary${query}`),
   channelHealthSummary: (query) => request(`/perf-metrics/channel-health${query}`),
   groups: () => request('/group'),

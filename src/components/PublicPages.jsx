@@ -9,24 +9,23 @@ import { AccountAvatar, SiteBrand } from './Identity.jsx';
 import { useLanguage } from '../lib/use-language.js';
 import LanguageSwitcher from './LanguageSwitcher.jsx';
 
-export function PublicHome({ onNavigate }) {
+export function PublicHome({ onNavigate, status, branding }) {
   useLanguage();
   const [service, setService] = useState('checking');
   const [content, setContent] = useState(null);
-  const [siteStatus, setSiteStatus] = useState(null);
+  const [initialStatus, setSiteStatus] = useState(null);
+  const siteStatus = status || initialStatus;
   const [sessionUser, setSessionUser] = useState(null);
   const [models, setModels] = useState([]);
 
   useEffect(() => {
-    Promise.allSettled([newApi.publicStatus(), newApi.homeContent(), newApi.restoreSession({ force: true })]).then(([statusResult, contentResult, sessionResult]) => {
-      setService(statusResult.status === 'fulfilled' ? 'online' : 'unavailable');
-      if (statusResult.status === 'fulfilled') {
-        setSiteStatus(statusResult.value);
-        if (statusResult.value?.system_name) document.title = statusResult.value.system_name;
-      }
-      if (contentResult.status === 'fulfilled') setContent(contentResult.value);
-      if (sessionResult.status === 'fulfilled' && sessionResult.value) setSessionUser(sessionResult.value);
-    });
+    let active = true;
+    newApi.publicStatus().then((data) => {
+      if (active) { setSiteStatus(data); setService('online'); }
+    }).catch(() => { if (active) setService('unavailable'); });
+    newApi.homeContent().then((data) => { if (active) setContent(data); }).catch(() => {});
+    newApi.restoreSession({ force: true }).then((user) => { if (active && user) setSessionUser(user); }).catch(() => {});
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -47,7 +46,8 @@ export function PublicHome({ onNavigate }) {
   const managedText = typeof content === 'string' ? content.replace(/<[^>]+>/g, ' ').replace(/[#*_`]/g, '').replace(/\s+/g, ' ').trim() : '';
   const title = content?.title || content?.home_page_title || t("把模型接入你的工作流");
   const subtitle = content?.subtitle || content?.home_page_content || managedText || t("一个入口连接多家模型服务，统一管理密钥、额度和调用体验。");
-  const displayName = siteStatus?.system_name || t("模型工作台");
+  const brandStatus = siteStatus || branding;
+  const displayName = brandStatus?.system_name || '';
   const loggedInName = sessionUser?.username || sessionUser?.display_name || t("进入工作台");
   const signOut = async () => {
     try { await logout(); } catch { clearAccessToken(); }
@@ -55,7 +55,7 @@ export function PublicHome({ onNavigate }) {
     onNavigate('/');
   };
 
-  return <HomeLanding onNavigate={onNavigate} siteStatus={siteStatus} displayName={displayName} title={title} subtitle={subtitle} service={service} sessionUser={sessionUser} loggedInName={loggedInName} models={models} onSignOut={signOut} />;
+  return <HomeLanding onNavigate={onNavigate} branding={brandStatus} siteStatus={siteStatus} displayName={displayName} title={title} subtitle={subtitle} service={service} sessionUser={sessionUser} loggedInName={loggedInName} models={models} onSignOut={signOut} />;
 
   return <div className="site-home">
     <header className="site-nav"><a className="site-brand" href="/" onClick={(event) => { event.preventDefault(); onNavigate('/'); }}><span className="site-brand-icon">{brandIcon}</span><span>{displayName}<span className="brand-period">/</span></span></a>
@@ -127,7 +127,7 @@ function IDEPreview({ displayName }) {
   </div>;
 }
 
-function HomeLanding({ onNavigate, siteStatus, displayName, title, subtitle, service, sessionUser, loggedInName, models, onSignOut }) {
+function HomeLanding({ onNavigate, siteStatus, branding, displayName, title, subtitle, service, sessionUser, loggedInName, models, onSignOut }) {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
   const goTo = (target) => onNavigate(target);
@@ -148,7 +148,7 @@ function HomeLanding({ onNavigate, siteStatus, displayName, title, subtitle, ser
 
   return <div className="site-home home-v2">
     <header className="site-nav home-nav">
-      <SiteBrand status={siteStatus} name={displayName} onNavigate={goTo} />
+      <SiteBrand status={branding} name={displayName} onNavigate={goTo} />
       <nav className="site-links">
         <LanguageSwitcher />
         {sessionUser ? <div className="profile-menu-wrap home-account-menu" ref={accountMenuRef}>

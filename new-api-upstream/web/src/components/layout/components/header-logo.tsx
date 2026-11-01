@@ -16,6 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useState } from 'react'
+
+import { DEFAULT_LOGO } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 interface HeaderLogoProps {
@@ -24,6 +27,8 @@ interface HeaderLogoProps {
   loading: boolean
   logoLoaded: boolean
   className?: string
+  onError?: () => void
+  onLoad?: () => void
 }
 
 /**
@@ -36,13 +41,23 @@ export function HeaderLogo({
   loading,
   logoLoaded,
   className,
+  onError,
+  onLoad,
 }: HeaderLogoProps) {
+  const [failedSource, setFailedSource] = useState('')
   return (
     <img
-      src={src}
+      src={failedSource === src ? DEFAULT_LOGO : src}
       alt={alt}
+      onLoad={() => {
+        if (failedSource !== src) onLoad?.()
+      }}
+      onError={() => {
+        setFailedSource(src)
+        onError?.()
+      }}
       className={cn(
-        'h-6 w-6 rounded-full transition-opacity duration-200',
+        'h-6 w-auto max-w-44 object-contain transition-opacity duration-200',
         !loading && logoLoaded ? 'opacity-100' : 'opacity-0',
         className
       )}

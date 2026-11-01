@@ -82,6 +82,15 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
     if (autoLoad) loadConfig()
   }, [autoLoad, loadConfig])
 
+  useEffect(() => {
+    if (!autoLoad) return
+    document.title = config.systemName
+    document
+      .querySelector('meta[name="title"]')
+      ?.setAttribute('content', config.systemName)
+    applyFaviconToDom(config.favicon)
+  }, [autoLoad, config.systemName, config.favicon])
+
   // Preload logo image when URL changes
   useEffect(() => {
     const { logo } = config
@@ -94,7 +103,6 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
       logo,
       () => {
         setLoadedLogoUrl(logo)
-        applyFaviconToDom(logo)
       },
       () => {
         if (logo !== DEFAULT_LOGO) {

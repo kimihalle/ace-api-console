@@ -4,13 +4,15 @@ import { usageFilterQuery } from './usage-filters.js';
 import { usageLogQuery } from './usage-format.js';
 
 test('model and status filters use the same server query for rows and exports', () => {
-  const filters = { model: '  gpt-test/model + v2  ', status: 'failed' };
+  const filters = { model: '  gpt-test/model + v2  ', group: '  vip  ', status: 'failed' };
   const params = usageFilterQuery('7d', filters, new Date(2026, 9, 23, 12));
   assert.equal(params.get('model_name'), 'gpt-test/model + v2');
+  assert.equal(params.get('group'), 'vip');
   assert.equal(params.get('type'), '5');
   assert.equal(Number(params.get('end_timestamp')) - Number(params.get('start_timestamp')), 7 * 86400);
   assert.equal(usageLogQuery(params).get('usage_only'), 'true');
   assert.equal(usageLogQuery(params).get('model_name'), params.get('model_name'));
+  assert.equal(usageLogQuery(params).get('group'), 'vip');
   assert.equal(usageFilterQuery('24h', { status: 'success' }).get('type'), '2');
   assert.equal(usageFilterQuery('24h', { status: 'all' }).has('type'), false);
 });

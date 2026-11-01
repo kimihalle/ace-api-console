@@ -50,7 +50,7 @@ function useCountdown() {
   return [Math.max(0, Math.ceil((until - now) / 1000)), () => { const time = Date.now(); setNow(time); setUntil(time + 60000); }];
 }
 
-export default function AuthPage({ mode, onNavigate, onAuthenticated, initialChallenge = null }) {
+export default function AuthPage({ mode, onNavigate, onAuthenticated, initialChallenge = null, branding }) {
   useLanguage();
   const { status, connection, refresh } = useAuthStatus();
   const isRegister = mode === 'register', isForgot = mode === 'forgot-password', isReset = mode === 'reset';
@@ -201,7 +201,7 @@ export default function AuthPage({ mode, onNavigate, onAuthenticated, initialCha
     : loginChallenge ? '完成身份验证后继续登录。' : isForgot ? '输入账户绑定的邮箱，我们会发送重置链接。'
       : isReset ? (newPassword ? '请保存新密码，再返回登录。登录后可在个人设置中修改。' : '确认后将为你生成新密码，原密码会失效。') : '登录后继续管理你的模型接入。';
   return <main className="auth-page"><section className="auth-form-side"><div className="auth-form-wrap">
-    <div className="auth-inline-brand"><SiteBrand status={status} name={status?.system_name || t('模型工作台')} onNavigate={onNavigate} /><LanguageSwitcher /></div>
+    <div className="auth-inline-brand"><SiteBrand status={status || branding} onNavigate={onNavigate} /><LanguageSwitcher /></div>
     <div className="auth-title"><h2>{t(title)}</h2><p>{t(description)}</p></div>
     {connection === 'loading' && <p className="auth-status" role="status">{t('正在读取账户设置…')}</p>}
     {connection === 'error' && <div className="connection-callout" role="alert"><span>{t('服务暂时不可用，请稍后重试。')}</span><button type="button" onClick={() => refresh().catch(() => {})}>{t('重试')}</button></div>}
