@@ -4,6 +4,14 @@ import { availableMarketGroups, filterMarketModels, configuredGroupRatio, market
 
 const model = { name: 'test-model', vendor: '后台厂商', groups: ['all'], groupRatios: { basic: 1, discounted: 0.5, free: 0 }, pricing: { model_ratio: 2.5, completion_ratio: 5, cache_ratio: 0.1, create_cache_ratio: 1.25, supported_endpoint_types: ['anthropic'] } };
 
+test('saved display order controls available groups without exposing hidden or deleted groups', () => {
+  const usable = { '2': 'Two', '10': 'Ten', basic: '基础', free: '免费', auto: '自动' };
+  const ratios = { '2': 0.2, '10': 0.1, basic: 1, free: 0, auto: 1, private: 2 };
+  assert.deepEqual(availableMarketGroups(usable, ratios, ['private', 'deleted', '10', 'free', '10', '2']).map((group) => group.value), ['10', 'free', '2', 'basic']);
+  assert.deepEqual(availableMarketGroups(usable, ratios, null).map((group) => group.value), ['2', '10', 'basic', 'free']);
+  assert.deepEqual(availableMarketGroups({}, ratios, ['basic']), []);
+});
+
 test('only authorized groups with configured ratios are selectable; empty configured groups remain visible', () => {
   const usable = { default: 'User group', discounted: 'GPT-特价', unused: { desc: '尚未绑定渠道' }, free: '免费体验', auto: '自动', invalid: '无效' };
   assert.deepEqual(availableMarketGroups(usable, { discounted: 0.05, unused: 0.25, free: 0, auto: 1, invalid: null, 'admin-only': 1 }), [

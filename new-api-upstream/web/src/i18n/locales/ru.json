@@ -10,6 +10,12 @@
   "Unable to load preview": "Не удалось загрузить предпросмотр",
   "This removes the stored source and its hourly result permanently.": "Исходный код и результат за этот час будут удалены навсегда.",
   "translation": {
+    "Group display order": "Порядок отображения групп",
+    "Display order only. Pricing and automatic routing are unchanged.": "Меняется только порядок отображения, без изменения тарифов и автоматической маршрутизации.",
+    "Group display order must contain unique non-empty group names": "Названия групп должны быть уникальными и непустыми",
+    "Drag rows to set the display order, then save group settings.": "Перетащите строки для изменения порядка, затем сохраните настройки групп.",
+    "Clear search to reorder groups.": "Очистите поиск, чтобы изменить порядок групп.",
+    "Drag to reorder. Use Up and Down arrow keys when focused.": "Перетащите для изменения порядка. В фокусе используйте стрелки вверх и вниз.",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

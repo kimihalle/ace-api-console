@@ -10,6 +10,12 @@
   "Unable to load preview": "Không thể tải bản xem trước",
   "This removes the stored source and its hourly result permanently.": "Mã nguồn và kết quả theo giờ sẽ bị xóa vĩnh viễn.",
   "translation": {
+    "Group display order": "Thứ tự hiển thị nhóm",
+    "Display order only. Pricing and automatic routing are unchanged.": "Chỉ thay đổi thứ tự hiển thị, không ảnh hưởng giá hoặc định tuyến tự động.",
+    "Group display order must contain unique non-empty group names": "Tên nhóm phải duy nhất và không được để trống",
+    "Drag rows to set the display order, then save group settings.": "Kéo các hàng để sắp xếp, sau đó lưu cài đặt nhóm.",
+    "Clear search to reorder groups.": "Xóa tìm kiếm để sắp xếp các nhóm.",
+    "Drag to reorder. Use Up and Down arrow keys when focused.": "Kéo để sắp xếp. Khi có tiêu điểm, dùng phím mũi tên lên và xuống.",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

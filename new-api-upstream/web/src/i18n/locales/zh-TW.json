@@ -10,6 +10,12 @@
   "Unable to load preview": "卡片暫時無法載入",
   "This removes the stored source and its hourly result permanently.": "這將永久刪除原始碼及對應的小時記錄。",
   "translation": {
+    "Group display order": "分組顯示順序",
+    "Display order only. Pricing and automatic routing are unchanged.": "僅調整顯示順序，不影響計費和自動路由。",
+    "Group display order must contain unique non-empty group names": "分組顯示順序必須由不重複、非空的分組名稱組成",
+    "Drag rows to set the display order, then save group settings.": "拖動每行左側手柄調整顯示順序，再點選「儲存分組設定」。",
+    "Clear search to reorder groups.": "清除搜尋後可拖動排序。",
+    "Drag to reorder. Use Up and Down arrow keys when focused.": "拖動調整順序；聚焦後也可使用上下方向鍵。",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

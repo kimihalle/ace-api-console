@@ -27,7 +27,7 @@ import {
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { describe, expect, it, vi } from 'vitest'
+import { assert, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { SettingsPageProvider } from '../../components/settings-page-context'
@@ -35,6 +35,7 @@ import { positiveIntegerSchema } from '../../utils/numeric-field'
 import { GroupRatioForm } from '../group-ratio-form'
 
 const defaults = {
+  GroupDisplayOrder: '[]',
   GroupRatio: '{"default":1,"vip":0.8}',
   TopupGroupRatio: '{"vip":1.2}',
   UserUsableGroups: '{"default":"Standard access","vip":"Premium access"}',
@@ -46,6 +47,7 @@ const defaults = {
 }
 
 const schema = z.object({
+  GroupDisplayOrder: z.string(),
   GroupRatio: z.string(),
   TopupGroupRatio: z.string(),
   UserUsableGroups: z.string(),
@@ -79,6 +81,142 @@ function Fixture(props: {
 }
 
 describe('group settings workspace', () => {
+  it('disables a lone pricing handle and preserves order through add, rename and delete', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn(async (_values: typeof defaults) => {})
+    render(
+      <Fixture
+        onSave={onSave}
+        initial={{
+          GroupRatio: '{"default":1}',
+          UserUsableGroups: '{"default":"Standard"}',
+          TopupGroupRatio: '{}',
+        }}
+      />
+    )
+    expect(
+      screen.getByRole('button', { name: 'Drag default to reorder' })
+    ).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Add group' }))
+    const name = screen.getAllByRole('textbox', { name: 'Group name' })[0]
+    fireEvent.change(name, { target: { value: 'renamed' } })
+    const handle = screen.getByRole('button', {
+      name: 'Drag renamed to reorder',
+    })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+    const renamedRow = name.closest('tr')
+    assert(renamedRow)
+    await user.click(within(renamedRow).getByRole('button', { name: 'Delete' }))
+    expect(
+      screen.getByRole('button', { name: 'Drag default to reorder' })
+    ).toBeDisabled()
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onSave.mock.calls[0][0].GroupDisplayOrder).toBe('["default"]')
+    expect(JSON.parse(onSave.mock.calls[0][0].GroupRatio)).toEqual({
+      default: 1,
+    })
+  })
+
+  it('sorts pricing rows with the handle and saves only display order', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn(async (_values: typeof defaults) => {})
+    render(
+      <Fixture
+        onSave={onSave}
+        initial={{ GroupDisplayOrder: '["vip","default"]' }}
+      />
+    )
+    expect(
+      screen
+        .getAllByRole<HTMLInputElement>('textbox', { name: 'Group name' })
+        .map((input) => input.value)
+    ).toEqual(['vip', 'default'])
+    const handle = screen.getByRole('button', {
+      name: 'Drag default to reorder',
+    })
+    handle.focus()
+    await user.keyboard('{ArrowUp}')
+    expect(handle).toHaveFocus()
+    expect(
+      screen
+        .getAllByRole<HTMLInputElement>('textbox', { name: 'Group name' })
+        .map((input) => input.value)
+    ).toEqual(['default', 'vip'])
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onSave.mock.calls[0][0]).toEqual({
+      ...defaults,
+      GroupDisplayOrder: '["default","vip"]',
+    })
+  })
+
+  it('does not reorder hidden search rows or allow sorting during save', async () => {
+    const user = userEvent.setup()
+    const view = render(<Fixture />)
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Search groups by name or description',
+      }),
+      'vip'
+    )
+    expect(
+      screen.getByRole('button', { name: 'Drag vip to reorder' })
+    ).toBeDisabled()
+    expect(screen.getByText('Clear search to reorder groups.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Clear search' }))
+    expect(
+      screen.getByRole('button', { name: 'Drag vip to reorder' })
+    ).toBeEnabled()
+    view.rerender(<Fixture isSaving />)
+    expect(
+      screen.getByRole('button', { name: 'Drag vip to reorder' })
+    ).toBeDisabled()
+  })
+
+  it('keeps decimal drafts and numeric group identifiers when reordering', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn(async (_values: typeof defaults) => {})
+    render(
+      <Fixture
+        onSave={onSave}
+        initial={{
+          GroupRatio: '{"2":0.5,"10":0.8}',
+          GroupDisplayOrder: '["10","2"]',
+          UserUsableGroups: '{}',
+          TopupGroupRatio: '{}',
+        }}
+      />
+    )
+    const input = screen.getAllByRole<HTMLInputElement>('spinbutton', {
+      name: 'Ratio',
+    })[0]
+    fireEvent.change(input, { target: { value: '0.0' } })
+    const handle = screen.getByRole('button', { name: 'Drag 10 to reorder' })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+    expect(input.value).toBe('0.0')
+    expect(
+      screen
+        .getAllByRole<HTMLInputElement>('textbox', { name: 'Group name' })
+        .map((item) => item.value)
+    ).toEqual(['2', '10'])
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onSave.mock.calls[0][0].GroupDisplayOrder).toBe('["2","10"]')
+    expect(JSON.parse(onSave.mock.calls[0][0].GroupRatio)).toEqual({
+      '2': 0.5,
+      '10': 0,
+    })
+    expect(onSave.mock.calls[0][0].AutoGroups).toBe(defaults.AutoGroups)
+  })
   it('filters by description and clears search without discarding edits', async () => {
     const user = userEvent.setup()
     render(<Fixture />)
@@ -128,7 +266,9 @@ describe('group settings workspace', () => {
         .map((input) => input.value)
     ).toEqual(['group_2', 'group_1', 'default', 'vip'])
 
-    await user.click(screen.getByRole('button', { name: 'Save group settings' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
     await waitFor(() => expect(onSave).toHaveBeenCalled())
     const saved = onSave.mock.calls[0][0]
     expect(JSON.parse(saved.GroupRatio)).toEqual({
@@ -201,7 +341,9 @@ describe('group settings workspace', () => {
     expect(screen.getByRole('button', { name: 'Move vip up' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Move vip down' })).toBeDisabled()
     await user.click(screen.getByRole('tab', { name: 'Pricing groups' }))
-    await user.click(screen.getByRole('button', { name: 'Save group settings' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
     await waitFor(() => expect(onSave).toHaveBeenCalled())
     expect(onSave.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -244,7 +386,9 @@ describe('group settings workspace', () => {
     )
     expect(screen.getByText('Not in pricing table')).toBeVisible()
     await user.click(screen.getByRole('tab', { name: 'Pricing groups' }))
-    await user.click(screen.getByRole('button', { name: 'Save group settings' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
     await waitFor(() => expect(onSave).toHaveBeenCalled())
     expect(JSON.parse(onSave.mock.calls[0][0].AutoGroups)).toEqual([
       'vip',
@@ -286,7 +430,9 @@ describe('group settings workspace', () => {
       { target: { value: '0' } }
     )
     await user.click(screen.getByRole('tab', { name: 'Pricing groups' }))
-    await user.click(screen.getByRole('button', { name: 'Save group settings' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Save group settings' })
+    )
     await waitFor(() =>
       expect(
         screen.getByRole('tab', { name: 'Auto group order' })

@@ -10,6 +10,12 @@
   "Unable to load preview": "Unable to load preview",
   "This removes the stored source and its hourly result permanently.": "This removes the stored source and its hourly result permanently.",
   "translation": {
+    "Group display order": "Group display order",
+    "Display order only. Pricing and automatic routing are unchanged.": "Display order only. Pricing and automatic routing are unchanged.",
+    "Group display order must contain unique non-empty group names": "Group display order must contain unique non-empty group names",
+    "Drag rows to set the display order, then save group settings.": "Drag rows to set the display order, then save group settings.",
+    "Clear search to reorder groups.": "Clear search to reorder groups.",
+    "Drag to reorder. Use Up and Down arrow keys when focused.": "Drag to reorder. Use Up and Down arrow keys when focused.",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

@@ -10,6 +10,12 @@
   "Unable to load preview": "プレビューを読み込めません",
   "This removes the stored source and its hourly result permanently.": "ソースコードと対応する時間の記録を完全に削除します。",
   "translation": {
+    "Group display order": "グループの表示順",
+    "Display order only. Pricing and automatic routing are unchanged.": "表示順のみ変更します。料金と自動ルーティングには影響しません。",
+    "Group display order must contain unique non-empty group names": "グループ名は空欄や重複を含めることはできません",
+    "Drag rows to set the display order, then save group settings.": "行をドラッグして表示順を変更し、グループ設定を保存してください。",
+    "Clear search to reorder groups.": "検索をクリアすると並べ替えできます。",
+    "Drag to reorder. Use Up and Down arrow keys when focused.": "ドラッグで並べ替え。フォーカス時は上下矢印キーも使えます。",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

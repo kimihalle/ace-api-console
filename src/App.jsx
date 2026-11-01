@@ -169,7 +169,7 @@ function App() {
   const [pelicanMenuEnabled, setPelicanMenuEnabled] = useState(true);
   const [keyGroup, setKeyGroup] = useState('');
   const workspaceNavRef = useRef(null);
-  const groups = useMemo(() => availableMarketGroups(pricingCatalog.usable_group, pricingCatalog.group_ratio), [pricingCatalog, language]);
+  const groups = useMemo(() => availableMarketGroups(pricingCatalog.usable_group, pricingCatalog.group_ratio, pricingCatalog.group_display_order), [pricingCatalog, language]);
   const keyGroupOptions = useMemo(() => groups.map(({ value, label }) => ({ value, label })), [groups]);
   const announcements = useAnnouncements({ userId: inConsole && !authLoading ? authUser?.id : null, status: siteStatus, notice: siteNotice, blocked: Boolean(modal) || page === 'plans' });
 
@@ -249,7 +249,7 @@ function App() {
         const modelData = modelResult.status === 'fulfilled' ? modelResult.value : [];
         const pricing = pricingResult.status === 'fulfilled' && pricingResult.value?.success !== false ? pricingResult.value : null;
         setUserModels(normalizeModelCatalog(modelData, pricing));
-        setPricingCatalog({ vendors: pricing?.vendors || [], usable_group: pricing?.usable_group || {}, group_ratio: pricing?.group_ratio || {}, supported_endpoint: pricing?.supported_endpoint || {} });
+        setPricingCatalog({ vendors: pricing?.vendors || [], usable_group: pricing?.usable_group || {}, group_ratio: pricing?.group_ratio || {}, group_display_order: pricing?.group_display_order || [], supported_endpoint: pricing?.supported_endpoint || {} });
         setCatalogError(!pricing);
         setCatalogLoading(false);
       } finally { inFlight = false; }

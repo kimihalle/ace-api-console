@@ -20,9 +20,16 @@ export function configuredGroupRatio(ratios, group) {
   return ratio !== null && ratio >= 0 ? ratio : null;
 }
 
-export function availableMarketGroups(usableGroups, ratios) {
+export function availableMarketGroups(usableGroups, ratios, displayOrder = []) {
+  const positions = new Map();
+  if (Array.isArray(displayOrder)) {
+    for (const name of displayOrder) {
+      if (typeof name === 'string' && !positions.has(name)) positions.set(name, positions.size);
+    }
+  }
   return Object.entries(usableGroups || {})
     .filter(([value]) => value && value !== 'auto' && configuredGroupRatio(ratios, value) !== null)
+    .sort(([a], [b]) => (positions.get(a) ?? positions.size) - (positions.get(b) ?? positions.size))
     .map(([value, info]) => {
       const description = typeof info === 'string' ? info : info?.desc;
       const label = { 'Default group': '默认分组', 'VIP group': 'VIP 分组', 'User group': value === 'default' ? '默认分组' : value }[description];

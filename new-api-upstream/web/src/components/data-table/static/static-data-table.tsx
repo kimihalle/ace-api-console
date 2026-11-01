@@ -46,7 +46,12 @@ type StaticDataTableDataProps<TData = unknown> = StaticDataTableBaseProps & {
   data: TData[]
   getRowKey?: (row: TData, index: number) => React.Key
   getRowClassName?: (row: TData, index: number) => string | undefined
-  renderRow?: (row: TData, index: number) => React.ReactNode
+  renderRow?: (
+    row: TData,
+    index: number,
+    cells: React.ReactNode
+  ) => React.ReactNode
+  renderBody?: (rows: React.ReactNode) => React.ReactNode
   empty?: boolean
   emptyContent?: React.ReactNode
   emptyClassName?: string
@@ -98,6 +103,7 @@ function StaticDataTableWithColumns<TData>({
   getRowKey,
   getRowClassName,
   renderRow,
+  renderBody,
   empty,
   emptyContent,
   emptyClassName,
@@ -126,18 +132,22 @@ function StaticDataTableWithColumns<TData>({
           ))}
         </TableRow>
       </TableHeader>
-      <TableBody>
-        {isEmpty ? (
-          <StaticDataTableEmptyRow
-            colSpan={columns.length}
-            className={emptyClassName}
-          >
-            {emptyContent}
-          </StaticDataTableEmptyRow>
-        ) : (
-          bodyRows
-        )}
-      </TableBody>
+      {renderBody && !isEmpty ? (
+        renderBody(bodyRows)
+      ) : (
+        <TableBody>
+          {isEmpty ? (
+            <StaticDataTableEmptyRow
+              colSpan={columns.length}
+              className={emptyClassName}
+            >
+              {emptyContent}
+            </StaticDataTableEmptyRow>
+          ) : (
+            bodyRows
+          )}
+        </TableBody>
+      )}
     </>
   )
 }
@@ -157,25 +167,19 @@ function StaticDataTableRow<TData>({
   getRowClassName,
   renderRow,
 }: StaticDataTableRowProps<TData>) {
-  if (renderRow) {
-    return <>{renderRow(row, index)}</>
-  }
-
-  return (
-    <TableRow className={getRowClassName?.(row, index)}>
-      {columns.map((column) => (
-        <TableCell
-          key={column.id}
-          className={cn(
-            'max-w-full min-w-0 overflow-hidden',
-            getStaticCellClassName(column, row, index)
-          )}
-        >
-          {renderStaticCellContent(column, row, index)}
-        </TableCell>
-      ))}
-    </TableRow>
-  )
+  const cells = columns.map((column) => (
+    <TableCell
+      key={column.id}
+      className={cn(
+        'max-w-full min-w-0 overflow-hidden',
+        getStaticCellClassName(column, row, index)
+      )}
+    >
+      {renderStaticCellContent(column, row, index)}
+    </TableCell>
+  ))
+  if (renderRow) return <>{renderRow(row, index, cells)}</>
+  return <TableRow className={getRowClassName?.(row, index)}>{cells}</TableRow>
 }
 
 function renderStaticCellContent<TData>(

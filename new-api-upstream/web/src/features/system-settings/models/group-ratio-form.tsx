@@ -66,6 +66,7 @@ import {
 } from './group-ratio-visual-editor'
 
 type GroupFormValues = {
+  GroupDisplayOrder: string
   GroupRatio: string
   TopupGroupRatio: string
   UserUsableGroups: string
@@ -152,6 +153,10 @@ export const GroupRatioForm = memo(function GroupRatioForm({
             type='button'
             size='sm'
             onClick={form.handleSubmit(onSave, (errors) => {
+              if (errors.GroupDisplayOrder) {
+                setEditMode('json')
+                return
+              }
               if (errors.MaxTokenAutoGroups) {
                 setEditMode('visual')
                 setSection('auto')
@@ -168,6 +173,8 @@ export const GroupRatioForm = memo(function GroupRatioForm({
             section={section}
             onSectionChange={setSection}
             groupRatio={values.GroupRatio ?? ''}
+            groupDisplayOrder={values.GroupDisplayOrder ?? '[]'}
+            isSaving={isSaving}
             topupGroupRatio={values.TopupGroupRatio ?? ''}
             userUsableGroups={values.UserUsableGroups ?? ''}
             groupGroupRatio={values.GroupGroupRatio ?? ''}
@@ -231,6 +238,30 @@ export const GroupRatioForm = memo(function GroupRatioForm({
           />
         ) : (
           <SettingsForm onSubmit={form.handleSubmit(onSave)}>
+            <FormField
+              control={form.control}
+              name='GroupDisplayOrder'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Group display order')}</FormLabel>
+                  <FormControl>
+                    <JsonCodeEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      textareaRef={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Display order only. Pricing and automatic routing are unchanged.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name='GroupRatio'
