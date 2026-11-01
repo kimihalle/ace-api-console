@@ -54,8 +54,8 @@
 .mp-route-detail .model-health-heading { margin-bottom: 6px; }
 .mp-route-detail .health-timeline { height: 24px; gap: 3px; margin-top: 7px; }
 .mp-route-detail .health-bar { height: 24px; border-radius: 999px; }
-.mp-route-detail .probe-timeline { display: grid; grid-template-columns: repeat(var(--health-bucket-count), minmax(0, 1fr)); gap: 3px; }
-.mp-route-detail .probe-timeline .health-bar { width: min(100%, 9px); justify-self: center; }
+.mp-route-detail .probe-timeline { display: flex; gap: 2px; }
+.mp-route-detail .probe-timeline .health-bar { flex: 1 1 0; width: auto; min-width: 0; }
 .mp-route-detail .health-bar.healthy { background: #36c69a; }
 .mp-route-detail .health-bar.unknown { background: #e1e5e9; }
 .mp-route-detail .health-tooltip { z-index: 3; }

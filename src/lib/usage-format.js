@@ -117,6 +117,18 @@ export function healthHours(metric, windowStart, windowEnd, bucketSeconds = 3600
   return buckets;
 }
 
+export function healthProbeSamples(metric, windowStart, windowEnd) {
+  if (!(Number(windowStart) > 0) || !(Number(windowEnd) >= Number(windowStart))) return [];
+  const samples = new Map();
+  for (const point of metric?.recent_success_series || []) {
+    const ts = Number(point?.ts);
+    const rawRate = point?.success_rate;
+    if (!Number.isFinite(ts) || ts < Number(windowStart) || ts > Number(windowEnd) || rawRate == null || !Number.isFinite(Number(rawRate))) continue;
+    samples.set(ts, { ts, rate: Math.min(100, Math.max(0, Number(rawRate))) });
+  }
+  return [...samples.values()].sort((a, b) => a.ts - b.ts);
+}
+
 export function healthDisplayBuckets(metric, windowStart, windowEnd, bucketSeconds = 3600) {
   if (!(Number(windowStart) > 0) || !(Number(windowEnd) >= Number(windowStart))) return [];
   const points = new Map((metric?.recent_success_series || []).map((point) => [Number(point.ts), point]));

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets } from './usage-format.js';
+import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets, healthProbeSamples } from './usage-format.js';
 
 test('quota units and currency precision stay consistent, including small call costs', () => {
   assert.equal(formatQuotaDisplay(50000000, { quota_per_unit: 500000 }), '$100.00');
@@ -65,6 +65,23 @@ test('active probes use 96 five-minute buckets without inventing healthy history
   assert.equal(buckets.length, 96);
   assert.deepEqual(buckets.slice(0, 4).map(({ rate }) => rate), [0, null, 100, null]);
   assert.equal(buckets.at(-1).rate, null);
+});
+
+test('probe timeline includes only actual samples, sorted in time, with no synthetic gap buckets', () => {
+  const start = 1800000000;
+  const samples = healthProbeSamples({ recent_success_series: [
+    { ts: start + 1200, success_rate: 0 },
+    { ts: start + 600, success_rate: 100 },
+    { ts: start + 1800, success_rate: 140 },
+    { ts: start + 2400, success_rate: null },
+    { ts: start - 600, success_rate: 50 },
+  ] }, start, start + 3600);
+  assert.deepEqual(samples, [
+    { ts: start + 600, rate: 100 },
+    { ts: start + 1200, rate: 0 },
+    { ts: start + 1800, rate: 100 },
+  ]);
+  assert.deepEqual(healthProbeSamples(null, start, start), []);
 });
 
 test('health display runs oldest to newest from left to right and preserves gaps and original series', () => {
