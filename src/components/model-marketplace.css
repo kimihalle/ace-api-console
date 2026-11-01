@@ -54,12 +54,18 @@
 .mp-route-detail .model-health-heading { margin-bottom: 6px; }
 .mp-route-detail .health-timeline { height: 24px; gap: 3px; margin-top: 7px; }
 .mp-route-detail .health-bar { height: 24px; border-radius: 999px; }
-.mp-route-detail .probe-timeline { display: flex; gap: 2px; }
-.mp-route-detail .probe-timeline .health-bar { flex: 1 1 0; width: auto; min-width: 0; }
+.mp-route-detail .probe-history { width: fit-content; max-width: 100%; }
+.mp-route-detail .probe-history .health-timeline-viewport { overflow-x: auto; scrollbar-width: none; }
+.mp-route-detail .probe-history .health-timeline-viewport::-webkit-scrollbar { display: none; }
+.mp-route-detail .probe-timeline { display: flex; width: max-content; gap: 2px; }
+/* Each real check keeps the same dimensions, regardless of cadence or count. */
+.mp-route-detail .probe-timeline .health-bar { flex: 0 0 7px; width: 7px; min-width: 7px; max-width: 7px; border-radius: 3px; }
 .mp-route-detail .health-bar.healthy { background: #36c69a; }
 .mp-route-detail .health-bar.unknown { background: #e1e5e9; }
 .mp-route-detail .health-tooltip { z-index: 3; }
-.mp-health-axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9px; color: #a0a6b0; }
+.mp-route-detail .probe-history .health-tooltip { width: max-content; max-width: min(320px, calc(100vw - 48px)); }
+.health-history { position: relative; }
+.mp-health-axis { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 9px; color: #a0a6b0; white-space: nowrap; }
 .mp-toolbar { display: flex; align-items: center; gap: 12px; padding: 13px 17px; border-bottom: 1px solid #f0efec; }
 .mp-search { display: flex; align-items: center; gap: 7px; min-height: 32px; width: 234px; max-width: 100%; padding: 0 10px; background: #fff; border: 1px solid #e9eaed; border-radius: 7px; color: #a0a6b0; }
 .mp-search:focus-within { border-color: #d99b83; box-shadow: 0 0 0 2px #d9765710; }
