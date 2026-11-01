@@ -47,6 +47,7 @@ import { ProfitFilterControls } from './profit-filters'
 import { ProfitOverviewCards } from './profit-overview'
 import { ProfitFilteredSummary } from './profit-summary'
 import { ProfitBreakdowns, ProfitRecords } from './profit-tables'
+import { ResellerPricingPanel } from './reseller-pricing-panel'
 import type { ProfitFilters } from './types'
 
 export function ProfitPage() {
@@ -182,6 +183,9 @@ export function ProfitPage() {
                 <TabsTrigger value='channels'>{t('By channel')}</TabsTrigger>
                 <TabsTrigger value='groups'>{t('By group')}</TabsTrigger>
                 <TabsTrigger value='records'>{t('Call details')}</TabsTrigger>
+                <TabsTrigger value='reseller'>
+                  {t('Reseller quotes')}
+                </TabsTrigger>
               </TabsList>
               <TabsContent value='daily'>
                 <ProfitBreakdowns
@@ -245,6 +249,9 @@ export function ProfitPage() {
                     <ChevronRight />
                   </Button>
                 </div>
+              </TabsContent>
+              <TabsContent value='reseller'>
+                <ResellerPricingPanel />
               </TabsContent>
             </Tabs>
           </>
