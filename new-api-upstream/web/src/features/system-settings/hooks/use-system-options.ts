@@ -22,11 +22,15 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { getSystemOptions } from '../api'
 
-export function useSystemOptions() {
+export function useSystemOptions(options?: {
+  refetchInterval?: number
+  staleTime?: number
+}) {
   return useQuery({
     queryKey: ['system-options'],
     queryFn: async () => requireServerSuccess(await getSystemOptions()),
-    staleTime: 5 * 60 * 1000,
+    staleTime: options?.staleTime ?? 5 * 60 * 1000,
+    refetchInterval: options?.refetchInterval,
   })
 }
 

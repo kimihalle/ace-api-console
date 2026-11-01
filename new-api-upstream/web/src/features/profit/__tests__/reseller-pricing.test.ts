@@ -126,7 +126,7 @@ describe('reseller redemption-code pricing', () => {
     expect(result?.costMultiplier).toBe(5)
   })
 
-  it('calculates the credit, reseller price, cost and gross profit for denominations', () => {
+  it('keeps dollar-credit denominations intact and derives cash quotes from cost and target margin', () => {
     const groups = [
       {
         group: 'default',
@@ -143,18 +143,23 @@ describe('reseller redemption-code pricing', () => {
     ]
     const quotes = calculateResellerQuotes({
       groups,
-      discountPercent: 80,
-      exchangeRate: 7,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
       quotaPerUnit: 500000,
     })
     expect(quotes).toHaveLength(8)
     expect(quotes[0]).toMatchObject({
       faceValue: 10,
-      quota: 714286,
-      cost: expect.closeTo(5),
-      resellerPrice: expect.closeTo(8),
-      grossProfit: expect.closeTo(3),
-      breakEvenPrice: expect.closeTo(5),
+      quota: 5000000,
+      effectiveFaceValue: 10,
+      retailPrice: 10,
+      cost: 5,
+      resellerPrice: 6.25,
+      grossProfit: 1.25,
+      breakEvenPrice: 5,
+      minimumProfitablePrice: 5.01,
+      meetsRetailPrice: true,
       group: 'default',
     })
   })
@@ -162,8 +167,9 @@ describe('reseller redemption-code pricing', () => {
   it('does not quote a guaranteed cost while any accessible route is incomplete', () => {
     const quotes = calculateResellerQuotes({
       groups: estimate(),
-      discountPercent: 80,
-      exchangeRate: 7,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
       quotaPerUnit: 500000,
     })
     expect(quotes.every((quote) => quote.cost === null)).toBe(true)
@@ -183,8 +189,9 @@ describe('reseller redemption-code pricing', () => {
     expect(
       calculateResellerQuotes({
         groups: result,
-        discountPercent: 80,
-        exchangeRate: 7,
+        targetMarginPercent: 20,
+        cashPerCredit: 1,
+        upstreamCashPerUnit: 1,
         quotaPerUnit: 500000,
       })[0].cost
     ).toBeNull()
@@ -195,5 +202,149 @@ describe('reseller redemption-code pricing', () => {
       { value: 'agent', label: 'agent' },
     ])
     expect(estimate('none').every((item) => item.saleRatioFallback)).toBe(false)
+  })
+
+  it('recalculates agent prices from changed purchase and sales ratios without applying the display exchange rate', () => {
+    const groups = estimate().filter((group) => group.group === 'default')
+    const input = {
+      groups,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
+      quotaPerUnit: 500000,
+    }
+    const quote = calculateResellerQuotes(input)[0]
+    expect(quote).toMatchObject({
+      faceValue: 10,
+      quota: 5000000,
+      cost: 8,
+      resellerPrice: 10,
+      grossProfit: 2,
+    })
+    const updated = calculateResellerQuotes({
+      ...input,
+      groups: groups.map((group) => ({ ...group, costMultiplier: 0.4 })),
+    })[0]
+    expect(updated).toMatchObject({ cost: 4, resellerPrice: 5, grossProfit: 1 })
+  })
+
+  it('exposes when the cost-based quote exceeds retail instead of suggesting a loss-making face-value discount', () => {
+    const groups = estimate()
+      .filter((group) => group.group === 'default')
+      .map((group) => ({ ...group, costMultiplier: 3 }))
+    const quote = calculateResellerQuotes({
+      groups,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
+      quotaPerUnit: 500000,
+    })[0]
+    expect(quote).toMatchObject({
+      cost: 30,
+      breakEvenPrice: 30,
+      resellerPrice: 37.5,
+      grossProfit: 7.5,
+      meetsRetailPrice: false,
+    })
+  })
+
+  it('converts upstream credit cost using its actual cash purchase price independently of retail credit pricing', () => {
+    const groups = estimate().filter((group) => group.group === 'default')
+    const quote = calculateResellerQuotes({
+      groups,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 0.5,
+      quotaPerUnit: 500000,
+    })[0]
+    expect(quote).toMatchObject({
+      quota: 5000000,
+      retailPrice: 10,
+      cost: 4,
+      resellerPrice: 5,
+      grossProfit: 1,
+    })
+  })
+
+  it('rounds cash quotes upwards to cents so the target margin is not undercut', () => {
+    const groups = estimate()
+      .filter((group) => group.group === 'default')
+      .map((group) => ({ ...group, costMultiplier: 0.3333 }))
+    const quote = calculateResellerQuotes({
+      groups,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
+      quotaPerUnit: 500000,
+    })[0]
+    expect(quote.resellerPrice).toBe(4.17)
+    expect(
+      Number(quote.grossProfit) / Number(quote.resellerPrice)
+    ).toBeGreaterThanOrEqual(0.2)
+  })
+
+  it('does not invent costs or quotes for missing routes, cash units, or invalid target margins', () => {
+    const groups = estimate().filter((group) => group.group === 'default')
+    const input = {
+      groups,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
+      quotaPerUnit: 500000,
+    }
+    for (const patch of [
+      { groups: [] },
+      { upstreamCashPerUnit: null },
+      { upstreamCashPerUnit: -1 },
+      { targetMarginPercent: 100 },
+      { targetMarginPercent: Number.NaN },
+      { quotaPerUnit: 0 },
+    ]) {
+      const quote = calculateResellerQuotes({ ...input, ...patch })[0]
+      expect(quote.resellerPrice).toBeNull()
+      expect(quote.grossProfit).toBeNull()
+    }
+  })
+
+  it('keeps zero-cost upstream routes explicit and quotes above cost even at a zero target margin', () => {
+    const groups = estimate()
+      .filter((group) => group.group === 'default')
+      .map((group) => ({ ...group, costMultiplier: 0 }))
+    const quote = calculateResellerQuotes({
+      groups,
+      targetMarginPercent: 0,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
+      quotaPerUnit: 500000,
+    })[0]
+    expect(quote).toMatchObject({
+      cost: 0,
+      resellerPrice: 0.01,
+      minimumProfitablePrice: 0.01,
+      grossProfit: 0.01,
+    })
+  })
+
+  it('does not produce rounded cash prices or quota beyond JavaScript safe precision', () => {
+    const groups = estimate().filter((group) => group.group === 'default')
+    const input = {
+      groups,
+      targetMarginPercent: 20,
+      cashPerCredit: 1,
+      upstreamCashPerUnit: 1,
+      quotaPerUnit: 500000,
+    }
+    const hugeCost = calculateResellerQuotes({
+      ...input,
+      groups: groups.map((group) => ({ ...group, costMultiplier: 1e300 })),
+    })[0]
+    expect(hugeCost.resellerPrice).toBeNull()
+    expect(hugeCost.minimumProfitablePrice).toBeNull()
+    expect(
+      calculateResellerQuotes({
+        ...input,
+        quotaPerUnit: Number.MAX_SAFE_INTEGER,
+      })[0].quota
+    ).toBeNull()
   })
 })

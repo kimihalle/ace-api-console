@@ -17,7 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -56,6 +62,7 @@ const systemOptions = [
   },
   { key: 'QuotaPerUnit', value: '500000' },
   { key: 'USDExchangeRate', value: '7' },
+  { key: 'Price', value: '1' },
 ]
 
 function channel(id: number, name: string, ratio: number) {
@@ -79,11 +86,11 @@ function renderPanel() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={client}>
-      <ResellerPricingPanel />
-    </QueryClientProvider>
-  )
+  return render(<ResellerPricingPanel />, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  })
 }
 
 beforeEach(() => {
@@ -111,26 +118,96 @@ afterEach(() => {
 })
 
 describe('reseller pricing panel', () => {
-  it('uses live group and channel ratios to quote the eight code values', async () => {
+  it('shows dollar-credit face values and generates yuan quotes from cost instead of a face-value discount', async () => {
     renderPanel()
-    const rows = await screen.findAllByRole('row')
-    expect(rows).toHaveLength(11)
-    expect(screen.getByText('Primary supplier')).toBeInTheDocument()
+    await screen.findByText('Primary supplier')
+    const user = userEvent.setup()
+    const quoteTable = screen.getByRole('table', {
+      name: 'Agent cash quotes for dollar-credit codes',
+    })
+    const rows = within(quoteTable).getAllByRole('row')
+    expect(rows).toHaveLength(9)
     expect(screen.getByText('0.5x')).toBeInTheDocument()
     expect(screen.getByText('0.8x')).toBeInTheDocument()
-    expect(screen.getAllByText(/CN¥10\.00/).length).toBeGreaterThan(0)
+    expect(rows[1]).toHaveTextContent('$10.00')
+    expect(rows[1]).toHaveTextContent('CN¥8.00')
+    expect(rows[1]).toHaveTextContent('CN¥10.00')
+    expect(rows[1]).toHaveTextContent('CN¥2.00')
+    expect(
+      screen.queryByLabelText('Agent price discount')
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('$1.43')).not.toBeInTheDocument()
 
+    await user.clear(screen.getByLabelText('Target gross margin'))
+    await user.type(screen.getByLabelText('Target gross margin'), '50')
+    await waitFor(() => expect(rows[1]).toHaveTextContent('CN¥16.00'))
+    expect(
+      screen.getByRole('alert', { name: 'Quote exceeds retail price' })
+    ).toBeInTheDocument()
+  })
+
+  it('does not quote a fallback margin while the target margin is invalid', async () => {
+    renderPanel()
+    await screen.findByText('Primary supplier')
     const user = userEvent.setup()
-    await user.clear(screen.getByLabelText('Agent price discount'))
-    await user.type(screen.getByLabelText('Agent price discount'), '70')
+    const margin = screen.getByLabelText('Target gross margin')
+    await user.clear(margin)
+    await user.type(margin, '100')
+    expect(margin).toHaveAttribute('aria-invalid', 'true')
+    const row = within(
+      screen.getByRole('table', {
+        name: 'Agent cash quotes for dollar-credit codes',
+      })
+    ).getAllByRole('row')[1]
+    expect(row).toHaveTextContent('CN¥8.00')
+    expect(within(row).getAllByRole('cell', { name: '-' })).toHaveLength(2)
+  })
 
-    const tenYuanRow = rows.find((row) =>
-      row.querySelector('td')?.textContent?.includes('CN¥10.00')
-    )
-    expect(tenYuanRow).toBeDefined()
-    await waitFor(() => {
-      expect(tenYuanRow).toHaveTextContent('-CN¥1.00')
+  it('updates cash quotes when refreshed group settings change the sales ratio', async () => {
+    const view = renderPanel()
+    await screen.findByText('Primary supplier')
+    const quoteTable = screen.getByRole('table', {
+      name: 'Agent cash quotes for dollar-credit codes',
     })
+    expect(within(quoteTable).getAllByRole('row')[1]).toHaveTextContent(
+      'CN¥8.00'
+    )
+    const query = vi.mocked(useSystemOptions).mock.results[0].value
+    vi.mocked(useSystemOptions).mockReturnValue({
+      ...query,
+      data: {
+        data: systemOptions.map((option) =>
+          option.key === 'GroupRatio'
+            ? { ...option, value: '{"default":1}' }
+            : option
+        ),
+      },
+    })
+    view.rerender(<ResellerPricingPanel />)
+    const row = within(quoteTable).getAllByRole('row')[1]
+    await waitFor(() => expect(row).toHaveTextContent('CN¥4.00'))
+    expect(row).toHaveTextContent('CN¥5.00')
+    expect(row).toHaveTextContent('CN¥1.00')
+  })
+
+  it('explains missing purchase costs before the quote table instead of displaying an unexplained dash', async () => {
+    const supplier = channel(1, 'Unknown cost supplier', 0.4)
+    supplier.setting = '{}'
+    vi.mocked(getChannels).mockResolvedValue({
+      success: true,
+      data: { items: [supplier], total: 1, page: 1, page_size: 100 },
+    })
+    renderPanel()
+    expect(
+      await screen.findByText('Unable to calculate a complete agent quote')
+    ).toBeInTheDocument()
+    const row = within(
+      screen.getByRole('table', {
+        name: 'Agent cash quotes for dollar-credit codes',
+      })
+    ).getAllByRole('row')[1]
+    expect(within(row).getAllByRole('cell', { name: '-' })).toHaveLength(4)
+    expect(screen.getByText('Missing purchase ratio')).toBeInTheDocument()
   })
 
   it('loads every page of enabled channels for its cost basis', async () => {

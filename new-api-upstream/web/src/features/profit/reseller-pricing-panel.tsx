@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
 import { LoadingState } from '@/components/loading-state'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -51,7 +52,7 @@ import {
   getOptionValue,
 } from '@/features/system-settings/hooks/use-system-options'
 import { toIntlLocale } from '@/i18n/languages'
-import { formatNumber, formatQuota } from '@/lib/format'
+import { formatNumber } from '@/lib/format'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
 import {
@@ -68,8 +69,11 @@ const DEFAULT_PRICING_SETTINGS = {
   GroupDisplayOrder: '[]',
   'group_ratio_setting.group_special_usable_group': '{}',
   QuotaPerUnit: 500000,
-  USDExchangeRate: 7,
 }
+
+// Site and upstream recharge both use CNY 1 for USD 1 of wallet credit.
+// The site's display USD exchange rate is unrelated to these cash prices.
+const CASH_PER_CREDIT = 1
 
 async function getAllEnabledChannels(): Promise<ResellerChannel[]> {
   const pageSize = 100
@@ -102,11 +106,15 @@ function parseGroupOrder(value: string): string[] {
   }
 }
 
-function formatMoney(value: number | null, locale: string): string {
+function formatMoney(
+  value: number | null,
+  locale: string,
+  currency: 'CNY' | 'USD' = 'CNY'
+): string {
   if (value === null || !Number.isFinite(value)) return '-'
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'CNY',
+    currency,
     maximumFractionDigits: 2,
   }).format(value)
 }
@@ -121,11 +129,16 @@ export function ResellerPricingPanel() {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language) || 'en-US'
   const [userGroup, setUserGroup] = useState(ALL_USER_GROUPS)
-  const [discountInput, setDiscountInput] = useState('80')
-  const settingsQuery = useSystemOptions()
+  const [marginInput, setMarginInput] = useState('20')
+  const settingsQuery = useSystemOptions({
+    refetchInterval: 30000,
+    staleTime: 0,
+  })
   const channelsQuery = useQuery({
     queryKey: [...channelsQueryKeys.lists(), 'reseller-pricing'],
     queryFn: getAllEnabledChannels,
+    refetchInterval: 30000,
+    staleTime: 0,
   })
   const settings = useMemo(
     () => getOptionValue(settingsQuery.data?.data, DEFAULT_PRICING_SETTINGS),
@@ -175,18 +188,24 @@ export function ResellerPricingPanel() {
       specialUsableGroups,
     ]
   )
-  const discount = Number(discountInput)
-  const discountIsValid =
-    discountInput.trim() !== '' &&
-    Number.isFinite(discount) &&
-    discount >= 0 &&
-    discount <= 100
+  const margin = Number(marginInput)
+  const marginIsValid =
+    marginInput.trim() !== '' &&
+    Number.isFinite(margin) &&
+    margin >= 0 &&
+    margin < 100
   const quotes = calculateResellerQuotes({
     groups,
-    discountPercent: discountIsValid ? discount : 80,
-    exchangeRate: Number(settings.USDExchangeRate),
+    targetMarginPercent: marginIsValid ? margin : Number.NaN,
+    cashPerCredit: CASH_PER_CREDIT,
+    upstreamCashPerUnit: CASH_PER_CREDIT,
     quotaPerUnit: Number(settings.QuotaPerUnit),
   })
+  const exceedsRetailPrice = quotes.some(
+    (quote) => quote.meetsRetailPrice === false
+  )
+  const hasMissingCosts = groups.some((group) => group.status !== 'estimated')
+  const costSourceGroup = quotes[0]?.group || '-'
   const loading = settingsQuery.isPending || channelsQuery.isPending
   const error = settingsQuery.error || channelsQuery.error
   const refetch = () => {
@@ -207,7 +226,7 @@ export function ResellerPricingPanel() {
           </h2>
           <p className='text-muted-foreground max-w-3xl text-xs leading-relaxed'>
             {t(
-              'For each usable group, the estimate divides its highest enabled-channel purchase ratio by its effective sales ratio, then uses the highest result. This is a conservative estimate.'
+              'Code values are USD wallet credits. Site and upstream recharge both use CNY 1 for USD 1 credit. Quotes use the highest purchase-to-sales cost ratio across accessible routes; no currency exchange rate is applied.'
             )}
           </p>
         </div>
@@ -257,29 +276,36 @@ export function ResellerPricingPanel() {
           </Select>
         </div>
         <div className='space-y-1.5'>
-          <Label htmlFor='reseller-discount'>{t('Agent price discount')}</Label>
+          <Label htmlFor='reseller-margin'>{t('Target gross margin')}</Label>
           <div className='relative'>
             <Input
-              id='reseller-discount'
-              aria-invalid={!discountIsValid}
+              id='reseller-margin'
+              aria-invalid={!marginIsValid}
               type='number'
               min={0}
-              max={100}
+              max={99.99}
               step={1}
-              value={discountInput}
-              onChange={(event) => setDiscountInput(event.target.value)}
+              value={marginInput}
+              onChange={(event) => setMarginInput(event.target.value)}
               className='pr-8 tabular-nums'
             />
             <span className='text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm'>
               %
             </span>
           </div>
+          <p className='text-muted-foreground text-xs'>
+            {t(
+              'An editable pricing target, not a face-value discount. Price = cost / (1 - margin).'
+            )}
+          </p>
         </div>
       </div>
 
-      {!discountIsValid && (
+      {!marginIsValid && (
         <p className='text-destructive text-xs' role='alert'>
-          {t('Enter an agent discount from 0 to 100 percent.')}
+          {t(
+            'Enter a target margin from 0 up to, but not including, 100 percent.'
+          )}
         </p>
       )}
 
@@ -296,20 +322,56 @@ export function ResellerPricingPanel() {
       )}
       {!loading && !error && (
         <>
+          {hasMissingCosts && (
+            <Alert variant='destructive'>
+              <AlertTriangle aria-hidden='true' />
+              <AlertTitle>
+                {t('Unable to calculate a complete agent quote')}
+              </AlertTitle>
+              <AlertDescription>
+                {t(
+                  'Some accessible routes have missing purchase ratios or zero sales ratios. See the group cost basis below; unknown costs are never treated as zero.'
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          {exceedsRetailPrice && (
+            <Alert
+              variant='destructive'
+              aria-label={t('Quote exceeds retail price')}
+            >
+              <AlertTriangle aria-hidden='true' />
+              <AlertTitle>{t('Quote exceeds retail price')}</AlertTitle>
+              <AlertDescription>
+                {t(
+                  'The current cost basis cannot achieve this margin below retail. Review group {{group}} and its supplier costs before offering an agent discount.',
+                  { group: costSourceGroup }
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
           <div className='overflow-x-auto rounded-lg border'>
-            <Table className='min-w-[760px]'>
+            <Table
+              className='min-w-[960px]'
+              aria-label={t('Agent cash quotes for dollar-credit codes')}
+            >
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('Code face value')}</TableHead>
-                  <TableHead>{t('Credit after conversion')}</TableHead>
+                  <TableHead>{t('Code credit (USD)')}</TableHead>
                   <TableHead className='text-right'>
-                    {t('Estimated cost')}
+                    {t('Retail reference (CNY)')}
                   </TableHead>
                   <TableHead className='text-right'>
-                    {t('Suggested agent price')}
+                    {t('Estimated cost (CNY)')}
                   </TableHead>
                   <TableHead className='text-right'>
-                    {t('Estimated gross profit')}
+                    {t('Minimum profitable price (CNY)')}
+                  </TableHead>
+                  <TableHead className='text-right'>
+                    {t('Cost-based agent quote (CNY)')}
+                  </TableHead>
+                  <TableHead className='text-right'>
+                    {t('Estimated gross profit (CNY)')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -317,28 +379,23 @@ export function ResellerPricingPanel() {
                 {quotes.map((quote) => (
                   <TableRow key={quote.faceValue}>
                     <TableCell className='font-semibold'>
-                      {formatMoney(quote.faceValue, locale)}
+                      {formatMoney(quote.faceValue, locale, 'USD')}
                     </TableCell>
-                    <TableCell>
-                      <div>
-                        {quote.quota === null ? '-' : formatQuota(quote.quota)}
-                      </div>
-                      {quote.effectiveFaceValue !== null && (
-                        <div className='text-muted-foreground text-xs'>
-                          {t('Effective value')}:{' '}
-                          {formatMoney(quote.effectiveFaceValue, locale)}
-                        </div>
-                      )}
+                    <TableCell className='text-right tabular-nums'>
+                      {formatMoney(quote.retailPrice, locale)}
                     </TableCell>
                     <TableCell className='text-right tabular-nums'>
                       {formatMoney(quote.cost, locale)}
                     </TableCell>
                     <TableCell className='text-right tabular-nums'>
-                      {formatMoney(quote.resellerPrice, locale)}
+                      {formatMoney(quote.minimumProfitablePrice, locale)}
                     </TableCell>
                     <TableCell
-                      className={`text-right font-medium tabular-nums ${quote.grossProfit !== null && quote.grossProfit < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}
+                      className={`text-right font-semibold tabular-nums ${quote.meetsRetailPrice === false ? 'text-destructive' : ''}`}
                     >
+                      {formatMoney(quote.resellerPrice, locale)}
+                    </TableCell>
+                    <TableCell className='text-right font-medium tabular-nums'>
                       {formatMoney(quote.grossProfit, locale)}
                     </TableCell>
                   </TableRow>
@@ -440,7 +497,7 @@ export function ResellerPricingPanel() {
           </Card>
           <p className='text-muted-foreground text-xs leading-relaxed'>
             {t(
-              'This is a gross-margin estimate, not an automatic agent price or code delivery. It excludes payment fees, tax, promotions, and upstream model-price differences. If a usable route has no purchase ratio, profit is shown as unknown.'
+              'Prices are calculated automatically from cost and the target gross margin, rounded up to cents. Minimum profitable price is the lowest whole-cent price strictly above cost. Estimates assume matching model-price baselines and exclude fees, taxes, promotions and separately billed retries; they do not change code issuance or actual selling prices.'
             )}
           </p>
         </>

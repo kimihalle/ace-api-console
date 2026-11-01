@@ -45,10 +45,13 @@ export type ResellerQuote = {
   faceValue: number
   quota: number | null
   effectiveFaceValue: number | null
+  retailPrice: number | null
   cost: number | null
   resellerPrice: number | null
   grossProfit: number | null
   breakEvenPrice: number | null
+  minimumProfitablePrice: number | null
+  meetsRetailPrice: boolean | null
   group: string | null
 }
 
@@ -283,8 +286,9 @@ export function calculateResellerGroupCosts(input: {
 
 export function calculateResellerQuotes(input: {
   groups: ResellerGroupEstimate[]
-  discountPercent: number
-  exchangeRate: number
+  targetMarginPercent: number
+  cashPerCredit: number
+  upstreamCashPerUnit: number | null
   quotaPerUnit: number
 }): ResellerQuote[] {
   const groups = input.groups.filter((group) => group.status !== 'no_routes')
@@ -300,37 +304,78 @@ export function calculateResellerQuotes(input: {
     null
   )
   const canConvertQuota =
-    input.exchangeRate > 0 &&
-    Number.isFinite(input.exchangeRate) &&
-    input.quotaPerUnit > 0 &&
-    Number.isFinite(input.quotaPerUnit)
-  const discount =
-    Math.min(100, Math.max(0, Number(input.discountPercent) || 0)) / 100
+    input.quotaPerUnit > 0 && Number.isFinite(input.quotaPerUnit)
+  const validMargin =
+    Number.isFinite(input.targetMarginPercent) &&
+    input.targetMarginPercent >= 0 &&
+    input.targetMarginPercent < 100
+  const validCostUnit =
+    input.upstreamCashPerUnit !== null &&
+    Number.isFinite(input.upstreamCashPerUnit) &&
+    input.upstreamCashPerUnit >= 0
+  const validRetailPrice =
+    Number.isFinite(input.cashPerCredit) && input.cashPerCredit > 0
 
   return RESELLER_DENOMINATIONS.map((faceValue) => {
-    const quota = canConvertQuota
-      ? Math.round((faceValue / input.exchangeRate) * input.quotaPerUnit)
+    // A denomination is dollar-denominated wallet credit, not CNY cash.
+    // Display exchange rates must never reduce the credit delivered by a code.
+    const rawQuota = canConvertQuota
+      ? Math.round(faceValue * input.quotaPerUnit)
       : null
+    const quota =
+      rawQuota !== null && Number.isSafeInteger(rawQuota) ? rawQuota : null
     const effectiveFaceValue =
-      quota !== null && canConvertQuota
-        ? (quota / input.quotaPerUnit) * input.exchangeRate
-        : null
+      quota !== null && canConvertQuota ? quota / input.quotaPerUnit : null
     const costMultiplier = worstGroup?.costMultiplier ?? null
-    const cost =
-      !incomplete && effectiveFaceValue !== null && costMultiplier !== null
-        ? effectiveFaceValue * costMultiplier
+    const rawCost =
+      !incomplete &&
+      effectiveFaceValue !== null &&
+      costMultiplier !== null &&
+      Number.isFinite(costMultiplier) &&
+      costMultiplier >= 0 &&
+      validCostUnit &&
+      input.upstreamCashPerUnit !== null
+        ? effectiveFaceValue * costMultiplier * input.upstreamCashPerUnit
         : null
+    const cost =
+      rawCost !== null && Number.isSafeInteger(Math.ceil(rawCost * 100))
+        ? rawCost
+        : null
+    const retailPrice =
+      effectiveFaceValue !== null && validRetailPrice
+        ? effectiveFaceValue * input.cashPerCredit
+        : null
+    const minimumCents = cost !== null ? Math.floor(cost * 100) + 1 : null
+    const minimumProfitablePrice =
+      minimumCents !== null && Number.isSafeInteger(minimumCents)
+        ? minimumCents / 100
+        : null
+    const targetPrice =
+      cost !== null && validMargin
+        ? cost / (1 - input.targetMarginPercent / 100)
+        : null
+    // Round cash prices up to cents; a displayed quote must preserve its margin.
     const resellerPrice =
-      effectiveFaceValue !== null ? effectiveFaceValue * discount : null
+      targetPrice !== null &&
+      Number.isSafeInteger(Math.ceil(targetPrice * 100)) &&
+      minimumProfitablePrice !== null
+        ? Math.max(Math.ceil(targetPrice * 100) / 100, minimumProfitablePrice)
+        : null
     return {
       faceValue,
       quota,
       effectiveFaceValue,
+      retailPrice,
       cost,
       resellerPrice,
       grossProfit:
         cost !== null && resellerPrice !== null ? resellerPrice - cost : null,
       breakEvenPrice: cost,
+      minimumProfitablePrice,
+      meetsRetailPrice:
+        resellerPrice !== null && retailPrice !== null
+          ? resellerPrice <= retailPrice
+          : null,
       group: worstGroup?.group ?? null,
     }
   })
