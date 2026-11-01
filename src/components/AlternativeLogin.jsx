@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyRound, ShieldCheck } from 'lucide-react';
 import { t } from '../lib/i18n.js';
 import { consoleReturnPath } from '../lib/routes.js';
+import { getReferralCode } from '../lib/referrals.js';
 import { enabledLoginProviders, oauthAuthorizationURL, rememberOAuthLogin, passkeyRequestOptions, passkeyAssertion } from '../lib/auth-methods.js';
 import { logout, createOAuthLogin, loginWithWeChat, beginPasskeyLogin, finishPasskeyLogin } from '../lib/newapi.js';
 
@@ -26,7 +27,7 @@ export default function AlternativeLogin({ status, disabled, beforeLogin, onResu
       await beforeLogin();
       if (provider.kind === 'oauth') {
         await logout();
-        const authorization = await createOAuthLogin(provider.slug, new URLSearchParams(location.search).get('aff'));
+        const authorization = await createOAuthLogin(provider.slug, getReferralCode(location.search));
         const url = oauthAuthorizationURL(provider, authorization, location.origin);
         await rememberOAuthLogin(sessionStorage, provider.slug, authorization, consoleReturnPath(location.search));
         window.location.assign(url);

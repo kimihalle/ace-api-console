@@ -2,10 +2,43 @@ import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { login, verifyLoginCode, register, sendRegistrationCode, sendPasswordResetEmail, confirmPasswordReset, request, newApi, clearAccessToken, createOAuthLogin, completeOAuthLogin, beginPasskeyLogin, finishPasskeyLogin } from './newapi.js';
 import { enabledLoginProviders, oauthAuthorizationURL, rememberOAuthLogin, consumeOAuthLogin, OAUTH_LOGIN_KEY, passkeyRequestOptions, passkeyAssertion } from './auth-methods.js';
+import { clearReferralCode, getReferralCode } from './referrals.js';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; clearAccessToken(); });
 const response = (data) => new Response(JSON.stringify({ success: true, data }), { headers: { 'Content-Type': 'application/json' } });
+
+test('referral codes survive leaving registration and reach both registration and OAuth state', async () => {
+  const values = new Map();
+  const storage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) };
+  assert.equal(getReferralCode('?aff=PHwE', storage), 'PHwE');
+  assert.equal(getReferralCode('', storage), 'PHwE');
+  const calls = [];
+  globalThis.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return response({}); };
+  await register({ username: 'referral-fixture', password: 'fixture-password', aff_code: getReferralCode('', storage) });
+  await createOAuthLogin('github', getReferralCode('?redirect=%2Fconsole%2Fplans', storage));
+  assert.equal(calls[0].body.aff_code, 'PHwE');
+  assert.equal(calls[1].body.aff, 'PHwE');
+  assert.equal(getReferralCode('?aff=Next_123', storage), 'Next_123');
+  clearReferralCode(storage);
+  assert.equal(getReferralCode('', storage), '');
+});
+
+test('invalid explicit referral links clear old attribution and blocked storage does not block registration', () => {
+  const values = new Map([['aff', 'previous']]);
+  const storage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) };
+  for (const value of ['', 'https://example.test', '<script>', 'a'.repeat(33)]) {
+    values.set('aff', 'previous');
+    assert.equal(getReferralCode(`?aff=${encodeURIComponent(value)}`, storage), '');
+    assert.equal(getReferralCode('', storage), '');
+  }
+  values.set('aff', 'invalid cached code');
+  assert.equal(getReferralCode('', storage), '');
+  const blocked = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
+  assert.equal(getReferralCode('?aff=PHwE', blocked), 'PHwE');
+  assert.equal(getReferralCode('', blocked), '');
+  assert.doesNotThrow(() => clearReferralCode(blocked));
+});
 
 test('pricing refresh bypasses browser caches and preserves the explicit group display order', async () => {
   globalThis.fetch = async (url, init) => {

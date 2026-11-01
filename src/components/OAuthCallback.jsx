@@ -3,6 +3,7 @@ import { t } from '../lib/i18n.js';
 import { useLanguage } from '../lib/use-language.js';
 import { completeOAuthLogin, newApi } from '../lib/newapi.js';
 import { consumeOAuthLogin, OAUTH_LOGIN_KEY } from '../lib/auth-methods.js';
+import { clearReferralCode } from '../lib/referrals.js';
 import { SiteBrand } from './Identity.jsx';
 import AuthPage from './AuthPage.jsx';
 
@@ -39,7 +40,7 @@ export default function OAuthCallback({ provider, onNavigate, onAuthenticated, b
         setRedirect(destination); setChallenge(result.challenge);
       } else {
         const user = result.user || await newApi.currentUser();
-        if (active) handlers.current.onAuthenticated(user, destination);
+        if (active) { clearReferralCode(); handlers.current.onAuthenticated(user, destination); }
       }
     }).catch((issue) => { if (active) setError(issue.message || t('请求失败，请稍后再试。')); });
     return () => { active = false; };

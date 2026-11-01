@@ -4,6 +4,7 @@ import { t } from '../lib/i18n.js';
 import { useLanguage } from '../lib/use-language.js';
 import { login, register, verifyLoginCode, newApi, sendRegistrationCode, sendPasswordResetEmail, confirmPasswordReset } from '../lib/newapi.js';
 import { consoleReturnPath } from '../lib/routes.js';
+import { clearReferralCode, getReferralCode } from '../lib/referrals.js';
 import { copyText } from '../lib/clipboard.js';
 import { SiteBrand } from './Identity.jsx';
 import LanguageSwitcher from './LanguageSwitcher.jsx';
@@ -87,6 +88,8 @@ export default function AuthPage({ mode, onNavigate, onAuthenticated, initialCha
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const resetChallenge = () => { update('turnstile', ''); setChallengeKey((value) => value + 1); };
 
+  useEffect(() => { getReferralCode(window.location.search); }, []);
+
   // Email links contain a one-use secret. Keep it in memory and remove it from the address bar.
   useEffect(() => {
     if (!isReset) return;
@@ -101,7 +104,7 @@ export default function AuthPage({ mode, onNavigate, onAuthenticated, initialCha
 
   function target(path, extra = {}) {
     const params = new URLSearchParams({ redirect: consoleReturnPath(window.location.search), ...extra });
-    const affiliate = new URLSearchParams(window.location.search).get('aff');
+    const affiliate = getReferralCode(window.location.search);
     if (affiliate) params.set('aff', affiliate);
     return `${path}?${params}`;
   }
@@ -116,7 +119,9 @@ export default function AuthPage({ mode, onNavigate, onAuthenticated, initialCha
       setLoginChallenge(result.challenge); setLoginCode('');
       return;
     }
-    await onAuthenticated(result.user || await newApi.currentUser());
+    const user = result.user || await newApi.currentUser();
+    clearReferralCode();
+    await onAuthenticated(user);
   }
 
   async function beforeAlternativeLogin() {
@@ -158,7 +163,9 @@ export default function AuthPage({ mode, onNavigate, onAuthenticated, initialCha
           throw new Error(t('登录验证已过期，请重新登录。'));
         }
         const result = await verifyLoginCode(loginChallenge.flow_token, loginCode.trim());
-        await onAuthenticated(result.user || await newApi.currentUser());
+        const user = result.user || await newApi.currentUser();
+        clearReferralCode();
+        await onAuthenticated(user);
         return;
       }
       const current = await refresh();
@@ -179,9 +186,10 @@ export default function AuthPage({ mode, onNavigate, onAuthenticated, initialCha
         await register({
           username: form.username.trim(), password: form.password, turnstile: form.turnstile,
           ...(emailRequired ? { email: form.email.trim(), verification_code: form.verification_code.trim() } : {}),
-          aff_code: new URLSearchParams(window.location.search).get('aff') || undefined,
+          aff_code: getReferralCode(window.location.search) || undefined,
         });
-        onNavigate(target('/login', { created: '1' }));
+        clearReferralCode();
+        onNavigate(`/login?${new URLSearchParams({ redirect: consoleReturnPath(window.location.search), created: '1' })}`);
       } else {
         if (current.password_login_enabled === false) throw new Error(t('管理员已关闭密码登录。'));
         if ((current.user_agreement_enabled || current.privacy_policy_enabled) && !accepted) throw new Error(t('请先同意服务条款和隐私政策。'));
