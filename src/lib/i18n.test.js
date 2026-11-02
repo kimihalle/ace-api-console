@@ -14,7 +14,7 @@ test('language switching updates copy, valid Intl locales, CSV and configured la
   assert.equal(usageColumns.map((column) => t(column))[0], 'Time');
   assert.equal(usageCsvRow({ type: 2 }, {})[9], 'Succeeded');
   assert.deepEqual(availableMarketGroups({ default: 'Default group', custom: '自定义运营分组' }, { default: 1, custom: 0.5 }), [
-    { value: 'default', label: 'Default group' }, { value: 'custom', label: '自定义运营分组' },
+    { value: 'default', label: 'Default group', description: 'Default group' }, { value: 'custom', label: 'custom', description: '自定义运营分组' },
   ]);
   assert.equal(t('自定义站点/模型名称'), '自定义站点/模型名称');
   assert.equal(t('__proto__'), '__proto__');

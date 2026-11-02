@@ -110,6 +110,7 @@ export default function ModelMarketplace({ models, groups, catalog, quota, userG
 
       <div className="mp-catalog">
         <header className="mp-route-detail"><div className="mp-detail-title"><h2>{selected.label}</h2>{ratio !== null && <span className={`mp-ratio mp-ratio-tone-${ratioTone}`} aria-label={t('倍率 {value}', { value: ratio })}>×{ratio}</span>}<span className="mp-detail-count">{t("{count} 个模型", { count: filterMarketModels(models, { group: selectedGroup }).length })}</span></div>
+          {selected.description && <p className="mp-group-description">{selected.description}</p>}
           <div className="mp-credit"><span>{t("预计可用额度")}</span><strong>{estimatedGroupCredit(quota, ratio, status)}</strong><span className="mp-credit-balance">{t("余额 ")}{formatQuotaDisplay(quota, status)}{ratio !== null && ratio > 0 ? t(" / {v0} 倍率", { v0: ratio }) : ''}</span></div>
           <ModelHealth model={selected.label} metric={currentMonitor.data?.summary ? { ...currentMonitor.data.summary, recent_success_series: currentMonitor.data.success_series || [] } : null} scope={t("当前线路分组")} metrics={currentMonitor.data || { source: 'channel_checks' }} loading={currentMonitor.loading} error={currentMonitor.error} />
         </header>

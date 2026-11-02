@@ -11,6 +11,14 @@ export function fullTokenKey(value) {
   return /^[A-Za-z0-9_-]{32,}$/.test(value) ? `sk-${value}` : '';
 }
 
+// Presentation only: copying always uses the original authenticated secret.
+export function maskedTokenKey(value) {
+  const secret = fullTokenKey(value);
+  if (!secret) return '';
+  if (secret.length <= 15) return 'sk-••••••••';
+  return `${secret.slice(0, 7)}••••••••${secret.slice(-4)}`;
+}
+
 export function tokenRows(records, secrets = {}) {
   return records.filter((record) => Number.isSafeInteger(Number(record?.id)) && Number(record.id) > 0).map((record) => ({
     id: tokenId(record.id), name: record.name || `Key ${record.id}`,

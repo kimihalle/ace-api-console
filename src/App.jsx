@@ -22,7 +22,7 @@ import { useLanguage } from './lib/use-language.js';
 import LanguageSwitcher from './components/LanguageSwitcher.jsx';
 import AnnouncementDialog, { AnnouncementContent } from './components/Announcements.jsx';
 import { useAnnouncements } from './lib/use-announcements.js';
-import { tokenRows, fullTokenKey } from './lib/tokens.js';
+import { tokenRows, fullTokenKey, maskedTokenKey } from './lib/tokens.js';
 import { copyText } from './lib/clipboard.js';
 import KeyDialog from './components/KeyDialog.jsx';
 import Dialog from './components/Dialog.jsx';
@@ -273,6 +273,7 @@ function App() {
     if (!inConsole || !authUser) return;
     let active = true;
     let inFlight = false;
+    let refreshAgain = false;
     setCatalogLoading(true);
     const refreshCatalog = async () => {
       if (!active) return;
@@ -431,7 +432,7 @@ function App() {
           pageParams.set('p', String(usagePage));
           pageParams.set('size', '20');
           const pageQuery = pageParams.toString();
-          const [stats, logs] = await Promise.all([newApi.usageStats(`?${rangeQuery}`), newApi.usageLogs(`?${pageQuery}`)]);
+          const [stats, logs] = await Promise.all([newApi.usageStats(`?${usageLogQuery(rangeQuery)}`), newApi.usageLogs(`?${pageQuery}`)]);
           if (active) {
             setUserSummary((current) => ({ ...current, usage: stats }));
             setUsageRows(asList(logs));
@@ -824,7 +825,7 @@ function Dashboard({ user, status, summary, announcements = [], onAnnouncement, 
       </div>
       <div className="panel compact-panel">
         <SectionTitle title={t("账户状态")} />
-        <div className="dashboard-card-value"><span className="metric-icon green"><CheckCircle2 size={16} /></span><div><strong>{user?.status === 1 ? t("正常") : user?.status == null ? '—' : t("受限")}</strong><small>{t("分组：")}{user?.group || '—'}</small></div></div>
+        <div className="dashboard-card-value"><span className="metric-icon green"><CheckCircle2 size={16} /></span><div><strong>{user?.status === 1 ? t("正常") : user?.status == null ? '—' : t("受限")}</strong></div></div>
         <button className="button outline full" onClick={() => onNavigate('redeem')}><Ticket size={16} />{t("兑换额度码")}</button>
       </div>
     </section>
@@ -956,6 +957,17 @@ function KeysLegacy({ keys, search, onSearch, onCreate, onToggle, onDelete, onTo
     <section className="panel key-tip"><ShieldCheck size={19} /><div><strong>保护你的密钥</strong><p>不要在公开代码仓库、前端网页或截图中暴露密钥。发现异常调用时，请立即停用并重新创建。</p></div></section></div>;
 }
 
+function KeySecret({ secret, loading, onReveal, onCopy }) {
+  const [revealedSecret, setRevealedSecret] = useState('');
+  const visible = Boolean(secret) && revealedSecret === secret;
+  return <div className="key-secret-row">
+    <code className="key-preview">{secret ? visible ? secret : maskedTokenKey(secret) : t(loading ? '读取中' : '密钥读取失败')}</code>
+    {!loading && !secret && <button className="text-button" onClick={onReveal}>{t('重试')}</button>}
+    <button type="button" className="icon-button inline-icon" aria-label={t(visible ? '隐藏密钥' : '显示密钥')} title={t(visible ? '隐藏密钥' : '显示密钥')} aria-pressed={visible} onClick={() => setRevealedSecret(visible ? '' : secret)} disabled={loading || !secret}>{visible ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+    <button type="button" className="icon-button inline-icon" aria-label={t("复制完整密钥")} title={t("复制完整密钥")} onClick={onCopy} disabled={loading}><Copy size={15} /></button>
+  </div>;
+}
+
 function Keys({ keys, search, onSearch, page, total, loading, onPage, onConfigure, onReveal, onCopy, onToggle, onDelete, onToast, catalog, status, catalogLoading }) {
   const [ccSwitchKey, setCCSwitchKey] = useState(null);
   const visibleKeys = keys;
@@ -967,9 +979,9 @@ function Keys({ keys, search, onSearch, page, total, loading, onPage, onConfigur
       <div className="key-items">{visibleKeys.map((key) => {
         const canToggle = [1, 2, 3, 4].includes(Number(key.raw?.status));
         return <article className="key-row" key={key.id}>
-          <div className="key-main"><div className="key-title"><h3>{key.name}</h3><span className={`status-pill ${key.status === '启用中' ? 'success' : 'muted'}`}>{t(key.status)}</span><span className="soft-tag">{key.raw?.group || t('默认分组')}</span></div>
+          <div className="key-main"><div className="key-title"><h3>{key.name}</h3><span className={`status-pill ${key.status === '启用中' ? 'success' : 'muted'}`}>{t(key.status)}</span><span className="api-group-badge">{key.raw?.group || t('默认分组')}</span></div>
             <div className="key-meta"><span>{t("最近使用：")}{formatTokenAccessTime(key.raw?.accessed_time)}</span><span>{t("累计消费：")}<strong>{summaryValueFor(key.used)}</strong></span></div>
-            <div className="key-secret-row"><code className="key-preview">{key.secret || t(loading ? '读取中' : '密钥读取失败')}</code>{!loading && !key.secret && <button className="text-button" onClick={() => onReveal(key.id)}>{t('重试')}</button>}<button className="icon-button inline-icon" aria-label={t("复制完整密钥")} title={t("复制完整密钥")} onClick={() => onCopy(key.id)} disabled={loading}><Copy size={15} /></button></div>
+            <KeySecret secret={key.secret} loading={loading} onReveal={() => onReveal(key.id)} onCopy={() => onCopy(key.id)} />
           </div>
           <div className="key-actions"><button className="button outline small cc-switch-import" onClick={() => setCCSwitchKey(key)} disabled={loading || !key.secret}><Download size={15} />{t('导入 CC Switch')}</button><button className="button outline small" onClick={() => onConfigure(key)}><Settings2 size={15} />{t("配置")}</button><button className={`button small ${key.status === '启用中' ? 'warning' : 'outline'}`} onClick={() => onToggle(key.id)} disabled={!canToggle}>{key.status === '启用中' ? t("停用") : key.status === '已停用' ? t("启用") : t("需配置")}</button><button className="button danger small" onClick={() => onDelete(key.id)}><Trash2 size={15} />{t("删除")}</button></div>
         </article>;

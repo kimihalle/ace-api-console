@@ -31,9 +31,12 @@ export function availableMarketGroups(usableGroups, ratios, displayOrder = []) {
     .filter(([value]) => value && value !== 'auto' && configuredGroupRatio(ratios, value) !== null)
     .sort(([a], [b]) => (positions.get(a) ?? positions.size) - (positions.get(b) ?? positions.size))
     .map(([value, info]) => {
-      const description = typeof info === 'string' ? info : info?.desc;
-      const label = { 'Default group': '默认分组', 'VIP group': 'VIP 分组', 'User group': value === 'default' ? '默认分组' : value }[description];
-      return { value, label: label ? t(label) : description || value };
+      const desc = typeof info === 'string' ? info : info?.desc;
+      const description = typeof desc === 'string' ? desc.trim() : '';
+      let label = value;
+      if (value === 'default') label = t('默认分组');
+      if (value === 'vip') label = t('VIP 分组');
+      return { value, label, ...(description ? { description } : {}) };
     });
 }
 

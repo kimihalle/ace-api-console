@@ -44,6 +44,7 @@
 .mp-detail-title { display: flex; align-items: center; gap: 9px; min-width: 0; flex-wrap: wrap; }
 .mp-detail-title h2 { font-size: 16px; font-weight: 650; margin: 0; line-height: 1.4; overflow-wrap: anywhere; }
 .mp-detail-count { font-size: 10px; color: var(--mp-muted); margin-left: auto; }
+.mp-group-description { margin: 6px 0 0; color: #79818c; font-size: 12px; line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
 .mp-credit { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; margin-top: 12px; color: #79818c; font-size: 11px; }
 .mp-credit > strong { color: var(--accent-deep); font-size: 21px; font-weight: 650; letter-spacing: -.4px; overflow-wrap: anywhere; max-width: 100%; }
 .mp-credit-balance { font-size: 10px; color: #989eaa; overflow-wrap: anywhere; }

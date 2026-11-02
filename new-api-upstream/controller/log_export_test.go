@@ -172,6 +172,50 @@ func TestLogExportDatabaseMatrix(t *testing.T) {
 				assert.Equal(t, []any{"a-2", "a-1"}, exportedRequestIds(exported))
 				assert.Equal(t, true, exported[2]["success"])
 			})
+
+			t.Run("API groups and internal checks stay distinct in lists filters stats and exports", func(t *testing.T) {
+				rows := []model.Log{
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "default", TokenName: "Model test", Quota: 9000, RequestId: "internal-check", Other: `{"admin_info":{"internal_test":true}}`},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "default", TokenName: "Model test", Quota: 9000, RequestId: "legacy-check"},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-vip", TokenId: 42, TokenName: "Model test", Quota: 100, PromptTokens: 11, CompletionTokens: 2, RequestId: "api-call"},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeError, Group: "api-vip", TokenId: 42, RequestId: "api-failure"},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-public", Quota: 50, RequestId: "playground-call"},
+					{UserId: 2, Username: "bob", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-vip", TokenId: 43, Quota: 999, RequestId: "other-user-call"},
+				}
+				for i := range rows {
+					require.NoError(t, model.LOG_DB.Create(&rows[i]).Error)
+				}
+				usageQuery := query + "&usage_only=true"
+				listed := callLogHandler(t, GetUserLogs, 1, common.RoleCommonUser, usageQuery+"&size=100")[0]
+				require.Equal(t, true, listed["success"])
+				assert.EqualValues(t, 5, listed["data"].(map[string]any)["total"])
+				for _, row := range listed["data"].(map[string]any)["items"].([]any) {
+					assert.NotContains(t, []any{"internal-check", "legacy-check", "other-user-call"}, row.(map[string]any)["request_id"])
+				}
+				groupQuery := usageQuery + "&group=api-vip"
+				grouped := callLogHandler(t, GetUserLogs, 1, common.RoleCommonUser, groupQuery)[0]
+				require.Equal(t, true, grouped["success"])
+				assert.EqualValues(t, 2, grouped["data"].(map[string]any)["total"])
+				for _, row := range grouped["data"].(map[string]any)["items"].([]any) {
+					assert.Equal(t, "api-vip", row.(map[string]any)["group"])
+				}
+				exported := callLogHandler(t, ExportUserLogs, 1, common.RoleCommonUser, groupQuery)
+				require.Len(t, exported, 3)
+				assert.ElementsMatch(t, []any{"api-call", "api-failure"}, exportedRequestIds(exported))
+				for _, row := range exported[:2] {
+					assert.Equal(t, "api-vip", row["group"])
+				}
+				statHandler := func(c *gin.Context) { c.Set("username", "alice"); GetLogsSelfStat(c) }
+				stat := callLogHandler(t, statHandler, 1, common.RoleCommonUser, usageQuery)[0]
+				require.Equal(t, true, stat["success"])
+				assert.EqualValues(t, 160, stat["data"].(map[string]any)["quota"])
+				stat = callLogHandler(t, statHandler, 1, common.RoleCommonUser, groupQuery)[0]
+				require.Equal(t, true, stat["success"])
+				assert.Equal(t, map[string]any{"quota": float64(100), "rpm": float64(1), "tpm": float64(13)}, stat["data"])
+				admin := callLogHandler(t, GetAllLogs, 3, common.RoleAdminUser, query+"&request_id=internal-check")[0]
+				require.Equal(t, true, admin["success"])
+				assert.EqualValues(t, 1, admin["data"].(map[string]any)["total"], "admin diagnostics are retained")
+			})
 		})
 	}
 }
@@ -179,6 +223,9 @@ func TestLogExportDatabaseMatrix(t *testing.T) {
 func TestLogExportRules(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, _ := newAuditTestDatabase(t, "sqlite", "")
+	connection, err := db.DB()
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, connection.Close()) })
 	useLogExportDatabases(t, db, db, common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
 	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Log{}, &model.QuotaData{}))
 	now := time.Now().Unix()

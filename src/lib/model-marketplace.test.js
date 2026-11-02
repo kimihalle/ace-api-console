@@ -15,10 +15,29 @@ test('saved display order controls available groups without exposing hidden or d
 test('only authorized groups with configured ratios are selectable; empty configured groups remain visible', () => {
   const usable = { default: 'User group', discounted: 'GPT-特价', unused: { desc: '尚未绑定渠道' }, free: '免费体验', auto: '自动', invalid: '无效' };
   assert.deepEqual(availableMarketGroups(usable, { discounted: 0.05, unused: 0.25, free: 0, auto: 1, invalid: null, 'admin-only': 1 }), [
-    { value: 'discounted', label: 'GPT-特价' }, { value: 'unused', label: '尚未绑定渠道' }, { value: 'free', label: '免费体验' },
+    { value: 'discounted', label: 'discounted', description: 'GPT-特价' }, { value: 'unused', label: 'unused', description: '尚未绑定渠道' }, { value: 'free', label: 'free', description: '免费体验' },
   ]);
-  assert.deepEqual(availableMarketGroups({ default: 'Default group' }, { default: 1 }), [{ value: 'default', label: '默认分组' }]);
-  assert.deepEqual(availableMarketGroups({ default: '自定义展示名' }, { default: 1 }), [{ value: 'default', label: '自定义展示名' }]);
+  assert.deepEqual(availableMarketGroups({ default: 'Default group' }, { default: 1 }), [{ value: 'default', label: '默认分组', description: 'Default group' }]);
+  assert.deepEqual(availableMarketGroups({ default: '自定义说明' }, { default: 1 }), [{ value: 'default', label: '默认分组', description: '自定义说明' }]);
+});
+
+test('group descriptions remain separate from names and follow the selected group', () => {
+  const groups = availableMarketGroups({
+    deepseek: '适合日常对话\n支持缓存读取',
+    'Claude Kiro低价': { desc: '低价线路，适合个人使用' },
+    same: 'same',
+    blank: '   ',
+    missing: {},
+    unsafe: '<img src=x onerror=alert(1)>',
+  }, { deepseek: 0.07, 'Claude Kiro低价': 0.1, same: 1, blank: 1, missing: 1, unsafe: 1 }, ['Claude Kiro低价', 'deepseek']);
+  assert.deepEqual(groups, [
+    { value: 'Claude Kiro低价', label: 'Claude Kiro低价', description: '低价线路，适合个人使用' },
+    { value: 'deepseek', label: 'deepseek', description: '适合日常对话\n支持缓存读取' },
+    { value: 'same', label: 'same', description: 'same' },
+    { value: 'blank', label: 'blank' },
+    { value: 'missing', label: 'missing' },
+    { value: 'unsafe', label: 'unsafe', description: '<img src=x onerror=alert(1)>' },
+  ]);
 });
 
 test('group vendor icons come from actual model membership, never from the group name', () => {

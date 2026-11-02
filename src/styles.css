@@ -168,8 +168,9 @@ td strong { color: #36404d; }
 .key-items { margin-top: 20px; }
 .key-row { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 21px 0; border-top: 1px solid #eef0f2; }
 .key-main { flex: 1; min-width: 0; }
-.key-title { display: flex; align-items: center; gap: 9px; }
+.key-title { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .key-title h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.api-group-badge { display: inline-flex; max-width: 100%; padding: 4px 9px; border: 1px solid #ecd5bc; border-radius: 6px; background: #fcf0e2; color: #97572b; font-size: 11px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .soft-tag { color: #697894; background: #eef2fb; border-radius: 999px; padding: 4px 8px; font-size: 10px; }
 .key-meta { display: flex; flex-wrap: wrap; gap: 17px; margin: 10px 0; color: #8c95a1; font-size: 11px; }
 .key-meta strong { color: #505a68; }
@@ -177,6 +178,7 @@ td strong { color: #36404d; }
 .inline-icon { vertical-align: middle; margin-left: 4px; padding: 5px; }
 .key-actions { display: flex; gap: 7px; align-items: center; }
 .key-secret-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.key-secret-row .icon-button { flex-shrink: 0; }
 .key-secret-row .key-preview { max-width: min(48vw, 420px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .usage-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .usage-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 0; color: #8c8178; font-size: 12px; }

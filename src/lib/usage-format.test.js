@@ -50,6 +50,15 @@ test('exports share server filtering, column order and protect spreadsheet formu
   assert.match(csvLine(cells), /"'=cmd\(\)"/);
 });
 
+test('usage groups follow each invocation, not the account or the current key group', () => {
+  const groups = [{ value: 'api-vip', label: 'VIP线路' }, { value: 'api-public', label: '公共线路' }];
+  const base = { type: 2, model_name: 'same-model', token_id: 42, user_group: 'account-only', token_group: 'current-key-group' };
+  assert.equal(usageCsvRow({ ...base, group: 'api-vip' }, {}, groups)[2], 'VIP线路');
+  assert.equal(usageCsvRow({ ...base, group: 'api-public' }, {}, groups)[2], '公共线路');
+  assert.equal(usageCsvRow({ ...base, group: 'old-deleted-group' }, {}, groups)[2], 'old-deleted-group');
+  assert.equal(usageCsvRow(base, {}, groups)[2], '—');
+});
+
 test('health gaps remain unknown; failed samples stay failed and old hours are excluded', () => {
   const start = 1792314000;
   const buckets = healthHours({ recent_success_series: [{ ts: start - 3600, success_rate: 100 }, { ts: start, success_rate: 100 }, { ts: start + 3600, success_rate: 0 }] }, start, start + 7 * 3600 + 120);

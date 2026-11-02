@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fullTokenKey, tokenId, tokenRows } from './tokens.js';
+import { fullTokenKey, maskedTokenKey, tokenId, tokenRows } from './tokens.js';
 import { newApi } from './newapi.js';
+
+test('key masks expose only a short prefix and suffix without modifying the copy source', () => {
+  const secret = 'sk-isolated-synthetic-test-key';
+  assert.equal(maskedTokenKey(secret), 'sk-isol••••••••-key');
+  assert.equal(maskedTokenKey('sk-short'), 'sk-••••••••');
+  assert.equal(maskedTokenKey('sk-…'), '');
+  assert.equal(maskedTokenKey(null), '');
+  assert.equal(secret, 'sk-isolated-synthetic-test-key');
+});
 
 test('missing or invalid token ids never become /undefined requests', () => {
   for (const id of [undefined, null, '', 'undefined', 'abc', -1, 0, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
@@ -13,7 +22,7 @@ test('missing or invalid token ids never become /undefined requests', () => {
   assert.equal(tokenId('17'), 17);
 });
 
-test('token rows use authenticated plaintext responses, never masked keys or phantom create records', () => {
+test('token rows ignore masked keys and phantom create records until a full key is requested', () => {
   const records = [{ id: 1, name: 'Project', key: 'sk-abc*****xyz', status: 1 }, { name: 'phantom' }, { id: 2, name: 'Other' }];
   const rows = tokenRows(records, { 1: 'sk-actual-test-value', 2: 'sk-…' });
   assert.equal(rows.length, 2);

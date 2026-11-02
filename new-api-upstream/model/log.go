@@ -484,7 +484,7 @@ type LogFilter struct {
 func (f LogFilter) apply(tx *gorm.DB) (*gorm.DB, error) {
 	var err error
 	if f.UsageOnly {
-		tx = tx.Where("logs.type IN ?", []int{LogTypeConsume, LogTypeError})
+		tx = excludeInternalTestLogs(tx.Where("logs.type IN ?", []int{LogTypeConsume, LogTypeError}))
 	}
 	if f.Type != LogTypeUnknown {
 		tx = tx.Where("logs.type = ?", f.Type)
@@ -514,9 +514,17 @@ func (f LogFilter) apply(tx *gorm.DB) (*gorm.DB, error) {
 		tx = tx.Where("logs.channel_id = ?", f.Channel)
 	}
 	if f.Group != "" {
-		tx = tx.Where("logs."+logGroupCol+" = ?", f.Group)
+		tx = tx.Where(map[string]any{"logs.group": f.Group})
 	}
 	return tx, nil
+}
+
+// Channel checks pin an upstream directly and use the test account's group,
+// not an API-key group. Keep these diagnostics in admin logs, not customer
+// usage. The token pair also identifies historical checks without metadata;
+// a customer's real token named "Model test" must not be excluded.
+func excludeInternalTestLogs(tx *gorm.DB) *gorm.DB {
+	return tx.Where("NOT (COALESCE(logs.token_id, 0) = ? AND COALESCE(logs.token_name, '') = ?)", 0, "Model test")
 }
 
 func GetAllLogs(filter LogFilter, startIdx int, num int) (logs []*Log, total int64, err error) {
@@ -682,11 +690,15 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
+func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, usageOnly bool) (stat Stat, err error) {
 	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
 
 	// 为rpm和tpm创建单独的查询
 	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
+	if usageOnly {
+		tx = excludeInternalTestLogs(tx)
+		rpmTpmQuery = excludeInternalTestLogs(rpmTpmQuery)
+	}
 
 	if tx, err = applyExplicitLogTextFilter(tx, "username", username); err != nil {
 		return stat, err
@@ -715,8 +727,8 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		rpmTpmQuery = rpmTpmQuery.Where("channel_id = ?", channel)
 	}
 	if group != "" {
-		tx = tx.Where(logGroupCol+" = ?", group)
-		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
+		tx = tx.Where(map[string]any{"logs.group": group})
+		rpmTpmQuery = rpmTpmQuery.Where(map[string]any{"logs.group": group})
 	}
 
 	tx = tx.Where("type = ?", LogTypeConsume)
