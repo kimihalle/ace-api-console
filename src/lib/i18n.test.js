@@ -12,7 +12,7 @@ test('language switching updates copy, valid Intl locales, CSV and configured la
   assert.equal(t('{count} 个模型', { count: 12 }), '12 models');
   assert.equal(t('第 {page} / {pages} 页', { page: 2, pages: 3 }), 'Page 2 of 3');
   assert.equal(usageColumns.map((column) => t(column))[0], 'Time');
-  assert.equal(usageCsvRow({ type: 2 }, {})[9], 'Succeeded');
+  assert.equal(usageCsvRow({ type: 2 }, {}).at(-1), 'Succeeded');
   assert.deepEqual(availableMarketGroups({ default: 'Default group', custom: '自定义运营分组' }, { default: 1, custom: 0.5 }), [
     { value: 'default', label: 'Default group', description: 'Default group' }, { value: 'custom', label: 'custom', description: '自定义运营分组' },
   ]);
@@ -25,6 +25,20 @@ test('language switching updates copy, valid Intl locales, CSV and configured la
   assert.equal(formatDuration({ duration_unit: 'month', duration_value: 2 }), '2 月');
   assert.equal(t('Dashboard'), '仪表盘');
   assert.equal(t('第 {page} / {pages} 页', { page: 2, pages: 3 }), '第 2 / 3 页');
+});
+
+test('usage duration header and export follow language changes without changing recorded seconds', () => {
+  const previous = getLanguage();
+  try {
+    setLanguage('en');
+    assert.equal(t('耗时'), 'Duration');
+    assert.equal(usageCsvRow({ type: 2, use_time: 5 }, {})[usageColumns.indexOf('耗时')], '5.0s');
+    setLanguage('zh');
+    assert.equal(t('耗时'), '耗时');
+    assert.equal(usageCsvRow({ type: 2, use_time: 5 }, {})[usageColumns.indexOf('耗时')], '5.0s');
+  } finally {
+    setLanguage(previous);
+  }
 });
 
 test('selection persists without reload and blocked storage has an in-memory fallback', async () => {

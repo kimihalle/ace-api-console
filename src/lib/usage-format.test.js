@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets, healthProbeSamples } from './usage-format.js';
+import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageColumns, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets, healthProbeSamples } from './usage-format.js';
 
 test('quota units and currency precision stay consistent, including small call costs', () => {
   assert.equal(formatQuotaDisplay(50000000, { quota_per_unit: 500000 }), '$100.00');
@@ -44,10 +44,36 @@ test('exports share server filtering, column order and protect spreadsheet formu
   const groups = [{ value: 'vip', label: 'Claude AWS渠道' }];
   const row = { type: 2, model_name: '=cmd()', group: 'vip', prompt_tokens: 11, completion_tokens: 53, quota: 1371 };
   const cells = usageCsvRow(row, {}, groups);
-  assert.deepEqual(cells.slice(2), ['Claude AWS渠道', '11', '53', '0', '0', '1371', '$0.002742', '成功']);
+  assert.deepEqual(cells.slice(2), ['Claude AWS渠道', '11', '53', '0', '0', '1371', '$0.002742', '—', '成功']);
   assert.equal(usageGroupLabel('missing', groups), 'missing');
   assert.equal(usageGroupLabel('', groups), '—');
   assert.match(csvLine(cells), /"'=cmd\(\)"/);
+});
+
+test('usage exports show recorded request duration in seconds without using first-token milliseconds', () => {
+  const durationIndex = usageColumns.indexOf('耗时');
+  assert.ok(durationIndex >= 0, 'Usage must expose the same duration recorded in backend logs');
+  const row = { type: 2, use_time: 5, is_stream: true, other: { frt: 780 } };
+  const before = JSON.stringify(row);
+  const cells = usageCsvRow(row, {});
+  assert.equal(cells.length, usageColumns.length);
+  assert.equal(cells[durationIndex], '5.0s');
+  assert.equal(cells.at(-1), '成功');
+  assert.equal(JSON.stringify(row), before);
+
+  for (const [seconds, expected] of [[0, '0.0s'], [1.25, '1.3s'], [125, '125.0s'], ['4', '4.0s']]) {
+    assert.equal(usageCsvRow({ ...row, use_time: seconds }, {})[durationIndex], expected);
+  }
+  assert.equal(usageCsvRow({ ...row, type: 5, use_time: 4 }, {})[durationIndex], '4.0s');
+});
+
+test('missing or invalid request duration stays unknown rather than becoming zero or first-token time', () => {
+  const durationIndex = usageColumns.indexOf('耗时');
+  assert.ok(durationIndex >= 0);
+  for (const seconds of [undefined, null, '', '  ', -1, NaN, Infinity, 'invalid', true]) {
+    const row = { type: 2, use_time: seconds, is_stream: true, other: { frt: 1000 } };
+    assert.equal(usageCsvRow(row, {})[durationIndex], '—');
+  }
 });
 
 test('usage groups follow each invocation, not the account or the current key group', () => {

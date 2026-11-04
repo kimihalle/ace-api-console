@@ -6,6 +6,14 @@ export function formatNumber(value) {
   return Number.isFinite(number) ? new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 6 }).format(number) : '—';
 }
 
+// Logs expose use_time in seconds; other.frt is a separate millisecond metric.
+export function formatLogDuration(value) {
+  if (typeof value !== 'number' && typeof value !== 'string') return '—';
+  if (typeof value === 'string' && value.trim() === '') return '—';
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? `${seconds.toFixed(1)}s` : '—';
+}
+
 export function formatMoney(value, symbol = '$') {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return '—';
@@ -77,7 +85,7 @@ export function usageLogQuery(rangeQuery) {
   return params;
 }
 
-export const usageColumns = ['时间', '模型', '分组', '输入 Token', '输出 Token', '缓存创建 Token', '缓存读取 Token', '额度使用', '消费（基数额度）', '状态'];
+export const usageColumns = ['时间', '模型', '分组', '输入 Token', '输出 Token', '缓存创建 Token', '缓存读取 Token', '额度使用', '消费（基数额度）', '耗时', '状态'];
 
 export function usageGroupLabel(value, groups = []) {
   if (value == null || value === '') return '—';
@@ -90,7 +98,7 @@ export function usageCsvRow(row, status, groups = []) {
   return [
     Number(row.created_at) > 0 ? new Date(Number(row.created_at) * 1000).toLocaleString(getLocale()) : '—',
     row.model_name || '—', usageGroupLabel(row.group, groups), usage.input, usage.output, usage.cacheWrite, usage.cacheRead,
-    usage.quota, formatQuotaDisplay(usage.quota, status), t(Number(row.type) === 5 ? '失败' : '成功'),
+    usage.quota, formatQuotaDisplay(usage.quota, status), formatLogDuration(row.use_time), t(Number(row.type) === 5 ? '失败' : '成功'),
   ].map((value) => value == null ? '—' : String(value));
 }
 

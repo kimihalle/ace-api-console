@@ -1,5 +1,6 @@
 // Only interface copy belongs here. Site names, groups, vendors, models and user input stay unchanged.
 export const messages = {
+  '耗时': 'Duration',
   '通行密钥': 'Passkey', '微信': 'WeChat', '使用 {name} 登录': 'Sign in with {name}',
   '或使用通行密钥验证': 'Or verify with a passkey', '通行密钥域名': 'Passkey domain', '使用默认域名': 'Use default domain',
   '无法初始化第三方登录，请重试。': 'Unable to start third-party sign-in. Try again.',

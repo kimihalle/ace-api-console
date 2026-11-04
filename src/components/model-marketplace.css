@@ -14,11 +14,28 @@
 .mp-vendor-chip.selected { color: var(--accent-deep); border-color: #efcdbf; background: #fffcfa; }
 .mp-inline-brand { display: grid; place-items: center; width: 17px; height: 17px; color: #777e88; }
 .mp-layout { display: grid; grid-template-columns: 228px minmax(0, 1fr); gap: 20px; align-items: start; }
-.mp-routes { min-width: 0; }
+.mp-routes { min-width: 0; min-height: 0; }
 .mp-routes-heading { display: flex; align-items: center; justify-content: space-between; padding: 1px 2px 11px; }
 .mp-routes-heading h2 { font-size: 12px; font-weight: 600; margin: 0; }
 .mp-routes-heading > span { font-size: 10px; color: var(--mp-muted); }
-.mp-route-list { display: flex; flex-direction: column; gap: 8px; }
+/* Keep a long group catalog inside its own scrollport so the model page stays put. */
+.mp-route-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(70vh, 680px);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: #d9cfc7 transparent;
+}
+.mp-route-list::-webkit-scrollbar { width: 7px; }
+.mp-route-list::-webkit-scrollbar-track { background: transparent; }
+.mp-route-list::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #d9cfc7; background-clip: padding-box; }
 .mp-route { width: 100%; text-align: left; border: 1px solid var(--mp-line); background: #fff; border-radius: 9px; padding: 12px 11px 10px; min-width: 0; transition: border-color .15s, background .15s; }
 .mp-route:hover { border-color: #dbb7a7; }
 .mp-route.selected { border-color: #e7a48a; background: #fff7f1; box-shadow: 0 0 0 1px #efc4b526; }
@@ -106,5 +123,5 @@
 .mp-reset { border: 1px solid #edc9b9; border-radius: 6px; color: var(--accent-deep); background: #fff8f3; padding: 6px 12px; font-size: 11px; }
 @media (max-width: 1199px) { .mp-models { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .mp-layout { grid-template-columns: 200px minmax(0, 1fr); gap: 14px; } .mp-filter-row { gap: 13px; } .mp-route { padding: 11px 9px; } .mp-route-detail { padding: 17px 16px; } .mp-models { padding: 12px; gap: 10px; } .mp-models.is-list .mp-model { grid-template-columns: minmax(0, 1fr); gap: 10px; } .mp-models.is-list .mp-model-pricing { border-left: 0; border-top: 1px solid #f0efec; padding: 10px 0 0; } }
-@media (max-width: 640px) { .mp-filters { padding: 1px 12px; margin-bottom: 17px; } .mp-filter-row { gap: 10px; padding: 10px 0; } .mp-filter-options { gap: 5px; } .mp-filter-chip { font-size: 10px; padding: 4px 9px; min-height: 28px; } .mp-filter-label { flex-basis: 45px; font-size: 11px; padding-top: 6px; } .mp-vendor-chip { font-size: 10px; padding: 4px 6px; gap: 5px; } .mp-layout { grid-template-columns: minmax(0, 1fr); gap: 13px; } .mp-routes-heading { padding-bottom: 8px; } .mp-route-list { flex-direction: row; overflow-x: auto; padding: 1px 1px 5px; scrollbar-width: thin; } .mp-route { flex: 0 0 260px; } .mp-route-detail { padding: 16px 14px; } .mp-detail-title h2 { font-size: 15px; } .mp-credit { column-gap: 8px; row-gap: 5px; } .mp-credit > strong { font-size: 20px; } .mp-credit-balance { flex-basis: 100%; } .mp-toolbar { padding: 11px 12px; gap: 8px; } .mp-search { flex: 1; width: auto; } .mp-model-count { font-size: 9px; } .mp-models { padding: 11px; gap: 9px; grid-template-columns: minmax(0, 1fr); } .mp-model { padding: 13px 14px 10px; } .mp-model-identity h3 { font-size: 12px; } .mp-model-pricing dt { font-size: 10px; } .mp-model-pricing dd { font-size: 11px; } .mp-model-pricing dl { column-gap: 22px; } .mp-price-unit { font-size: 9px; } }
+@media (max-width: 640px) { .mp-filters { padding: 1px 12px; margin-bottom: 17px; } .mp-filter-row { gap: 10px; padding: 10px 0; } .mp-filter-options { gap: 5px; } .mp-filter-chip { font-size: 10px; padding: 4px 9px; min-height: 28px; } .mp-filter-label { flex-basis: 45px; font-size: 11px; padding-top: 6px; } .mp-vendor-chip { font-size: 10px; padding: 4px 6px; gap: 5px; } .mp-layout { grid-template-columns: minmax(0, 1fr); gap: 13px; } .mp-routes-heading { padding-bottom: 8px; } .mp-route-list { max-height: min(54vh, 520px); padding: 1px 4px 5px 1px; } .mp-route { flex: 0 0 auto; } .mp-route-detail { padding: 16px 14px; } .mp-detail-title h2 { font-size: 15px; } .mp-credit { column-gap: 8px; row-gap: 5px; } .mp-credit > strong { font-size: 20px; } .mp-credit-balance { flex-basis: 100%; } .mp-toolbar { padding: 11px 12px; gap: 8px; } .mp-search { flex: 1; width: auto; } .mp-model-count { font-size: 9px; } .mp-models { padding: 11px; gap: 9px; grid-template-columns: minmax(0, 1fr); } .mp-model { padding: 13px 14px 10px; } .mp-model-identity h3 { font-size: 12px; } .mp-model-pricing dt { font-size: 10px; } .mp-model-pricing dd { font-size: 11px; } .mp-model-pricing dl { column-gap: 22px; } .mp-price-unit { font-size: 9px; } }
 @media (prefers-reduced-motion: reduce) { .mp-model, .mp-route { transition: none; } }

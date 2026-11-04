@@ -15,7 +15,7 @@ import ModelSelect from './components/ModelSelect.jsx';
 import ModelMarketplace from './components/ModelMarketplace.jsx';
 import PelicanSamples from './components/PelicanSamples.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
-import { formatQuotaDisplay, formatLoggedAmount, readLogOther, logUsage, usageLogQuery, usageColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
+import { formatQuotaDisplay, formatLoggedAmount, formatLogDuration, readLogOther, logUsage, usageLogQuery, usageColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
 import { availableMarketGroups, configuredGroupRatio, marketGroupVendors } from './lib/model-marketplace.js';
 import { consolePage, consolePath, consoleReturnPath, isConsolePath } from './lib/routes.js';
 import { useLanguage } from './lib/use-language.js';
@@ -925,7 +925,7 @@ function Usage({ data, status: siteStatus, rows, range, onRange, filters, models
     <section className="panel table-panel usage-table-panel">
       <SectionTitle title={t("调用记录")} detail={t("共 {v0} 条记录", { v0: total.toLocaleString(getLocale()) })} action={<div className="usage-controls"><div className="segmented" aria-label={t("统计周期")}>{[['24h', t("24 小时")], ['7d', t("7 天")], ['30d', t("30 天")]].map(([value, label]) => <button key={value} className={range === value ? 'selected' : ''} onClick={() => onRange(value)}>{label}</button>)}</div><button className="button outline small" onClick={onExport} disabled={exportBusy}><Download size={15} />{exportBusy ? t("正在导出") : t("导出")}</button></div>} />
       <UsageFilters filters={filters} range={range} models={models} groups={groups} onApply={onApplyFilters} />
-      <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageColumns.map((label, index) => <th key={label} scope="col" className={index >= 3 && index <= 8 ? 'numeric' : ''} title={index === 7 ? t("实际扣除的内部额度；订阅请求使用订阅扣费额度") : index === 8 ? t("按站点额度单位换算的消费，保留本次请求的计费结果") : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
+      <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageColumns.map((label, index) => <th key={label} scope="col" className={index >= 3 && index <= 9 ? 'numeric' : ''} title={index === 7 ? t("实际扣除的内部额度；订阅请求使用订阅扣费额度") : index === 8 ? t("按站点额度单位换算的消费，保留本次请求的计费结果") : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
         const usage = logUsage(row);
         const failed = Number(row.type) === 5;
         const groupLabel = usageGroupLabel(row.group, groups);
@@ -939,6 +939,7 @@ function Usage({ data, status: siteStatus, rows, range, onRange, filters, models
           <td className="numeric">{usage.cacheRead == null ? '—' : summaryValueFor(usage.cacheRead)}</td>
           <td className="numeric">{usage.quota == null ? '—' : summaryValueFor(usage.quota)}</td>
           <td className="numeric usage-cost" title={t(usage.source)}>{formatQuotaDisplay(usage.quota, siteStatus)}</td>
+          <td className="numeric usage-duration">{formatLogDuration(row.use_time)}</td>
           <td><span className={`status-pill ${failed ? 'failure' : 'success'}`}>{failed ? t("失败") : t("成功")}</span></td>
         </tr>;
       })}</tbody></table></div>
