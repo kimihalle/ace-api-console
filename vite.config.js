@@ -5,6 +5,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = env.NEW_API_TARGET;
   const proxy = target ? {
+    '^/newapi-admin(?:/|$)': { target, changeOrigin: true },
     '/api': { target, changeOrigin: true },
     '/v1': { target, changeOrigin: true },
     '/v1beta': { target, changeOrigin: true },

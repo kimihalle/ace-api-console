@@ -38,6 +38,7 @@ const defaultContentSettings: ContentSettings = {
   DataExportInterval: 5,
   Chats: '[]',
   DrawingEnabled: false,
+  ImageStudioEnabled: false,
   MjNotifyEnabled: false,
   MjAccountFilterEnabled: false,
   MjForwardUrlEnabled: false,

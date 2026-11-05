@@ -281,6 +281,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	recordImageStudioMetadata(c, other)
 	otherStr := other.JSONString()
 	// 判断是否需要记录 IP
 	needRecordIp := false
@@ -336,6 +337,17 @@ type RecordConsumeLogParams struct {
 	Other            *LogOther         `json:"other"`
 }
 
+func recordImageStudioMetadata(c *gin.Context, other *LogOther) {
+	if other == nil || c.GetHeader("X-Ace-Image-Studio") != "1" || c.Request.URL.Path != "/v1/images/generations" {
+		return
+	}
+	other.SetAdmin("image_studio", true)
+	other.SetAdmin("image_studio_prompt", c.GetString("image_studio_prompt"))
+	other.SetAdmin("image_studio_size", c.GetString("image_studio_size"))
+	other.SetAdmin("image_studio_quality", c.GetString("image_studio_quality"))
+	other.SetAdmin("image_studio_count", c.GetInt("image_studio_count"))
+}
+
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
 	if !common.LogConsumeEnabled {
 		return
@@ -347,6 +359,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	createdAt := common.GetTimestamp()
 	other := params.Other
 	CaptureProfitSnapshot(c, params.Quota, other)
+	recordImageStudioMetadata(c, other)
 	content := other.setContent(params.Content)
 	otherStr := other.JSONString()
 	// 判断是否需要记录 IP
@@ -479,12 +492,16 @@ type LogFilter struct {
 	Group             string
 	RequestId         string
 	UpstreamRequestId string
+	ImageStudioOnly   bool
 }
 
 func (f LogFilter) apply(tx *gorm.DB) (*gorm.DB, error) {
 	var err error
 	if f.UsageOnly {
 		tx = excludeInternalTestLogs(tx.Where("logs.type IN ?", []int{LogTypeConsume, LogTypeError}))
+	}
+	if f.ImageStudioOnly {
+		tx = tx.Where("logs.other LIKE ?", `%"image_studio":true%`)
 	}
 	if f.Type != LogTypeUnknown {
 		tx = tx.Where("logs.type = ?", f.Type)

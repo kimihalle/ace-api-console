@@ -14,6 +14,7 @@ import { AccountAvatar, SiteBrand } from './components/Identity.jsx';
 import ModelSelect from './components/ModelSelect.jsx';
 import ModelMarketplace from './components/ModelMarketplace.jsx';
 import PelicanSamples from './components/PelicanSamples.jsx';
+import ImageStudio from './components/ImageStudio.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
 import { formatQuotaDisplay, formatLoggedAmount, formatLogDuration, readLogOther, logUsage, usageLogQuery, usageColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
 import { availableMarketGroups, configuredGroupRatio, marketGroupVendors } from './lib/model-marketplace.js';
@@ -42,6 +43,7 @@ const navItems = [
   { id: 'bills', label: '账单明细', icon: Receipt },
   { id: 'keys', label: 'API 密钥', icon: KeyRound },
   { id: 'models', label: '模型广场', icon: Sparkles },
+  { id: 'images', label: '图片生成', icon: Sparkles },
   { id: 'pelican', label: '鹈鹕测智', icon: Activity },
   { id: 'plans', label: '购买订阅', icon: CreditCard },
 ];
@@ -172,6 +174,7 @@ function App() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(false);
   const [pelicanMenuEnabled, setPelicanMenuEnabled] = useState(true);
+  const imageStudioMenuEnabled = siteStatus?.image_studio_enabled === true;
   const [keyGroup, setKeyGroup] = useState('');
   const workspaceNavRef = useRef(null);
   const groups = useMemo(() => availableMarketGroups(pricingCatalog.usable_group, pricingCatalog.group_ratio, pricingCatalog.group_display_order), [pricingCatalog, language]);
@@ -228,7 +231,7 @@ function App() {
       }
     };
     const refreshBranding = (event) => {
-      if (event instanceof StorageEvent && event.key !== 'ace-branding-updated') return;
+      if (event instanceof StorageEvent && !['ace-branding-updated', 'ace-image-studio-updated'].includes(event.key)) return;
       refresh();
     };
     refresh();
@@ -350,6 +353,14 @@ function App() {
       setWorkspaceMenuOpen(false);
     }
   }, [inConsole, page, pelicanMenuEnabled]);
+
+  useEffect(() => {
+    if (inConsole && page === 'images' && siteStatus && !imageStudioMenuEnabled) {
+      const dashboardPath = consolePath('dashboard');
+      window.history.replaceState({}, '', dashboardPath);
+      setRoute(dashboardPath);
+    }
+  }, [inConsole, page, siteStatus, imageStudioMenuEnabled]);
 
   useEffect(() => {
     if (route === '/admin') window.location.replace(newApiConsoleUrl());
@@ -478,8 +489,9 @@ function App() {
   if (inConsole && (authLoading || !authUser)) return <RouteLoading />;
   if (!inConsole || !authUser) return <PublicHome onNavigate={go} />;
   if (!consolePage(route)) return <div className="route-loading"><LanguageSwitcher /><h1>{t('页面不存在')}</h1><button className="button primary" onClick={() => go(consolePath('dashboard'))}>{t('返回仪表盘')}</button></div>;
+  if (page === 'images' && (!siteStatus || !imageStudioMenuEnabled)) return <RouteLoading />;
 
-  const visibleNavItems = pelicanMenuEnabled ? navItems : navItems.filter((item) => item.id !== 'pelican');
+  const visibleNavItems = navItems.filter((item) => (item.id !== 'pelican' || pelicanMenuEnabled) && (item.id !== 'images' || imageStudioMenuEnabled));
   const current = visibleNavItems.find((item) => item.id === page) ?? visibleNavItems[0];
 
   const notify = (message) => {
@@ -771,6 +783,7 @@ function App() {
         {page === 'keys' && <Keys keys={keys} search={keySearch} onSearch={(value) => { setKeySearch(value); setKeyPage(1); }} page={keyPage} total={keyTotal} loading={keyLoading} onPage={setKeyPage} onConfigure={openKeyConfig} onReveal={revealKey} onCopy={copyKey} onToggle={toggleKey} onDelete={removeKey} onToast={notify} catalog={userModels} status={siteStatus} catalogLoading={catalogLoading} />}
         {page === 'bills' && <Bills rows={billRows} page={billPage} total={billTotal} loading={billLoading} onPage={setBillPage} />}
         {page === 'models' && <ModelMarketplace models={userModels} groups={groups} catalog={pricingCatalog} quota={authUser?.quota} userGroup={authUser?.group} status={siteStatus} loading={catalogLoading} error={catalogError} onToast={notify} />}
+        {page === 'images' && imageStudioMenuEnabled && <ImageStudio models={userModels} userId={authUser.id} onToast={notify} />}
         {page === 'pelican' && <PelicanSamples />}
         {page === 'plans' && <PurchaseStore user={authUser} status={siteStatus} onToast={notify} onBalanceChange={() => { newApi.currentUser().then(setAuthUser).catch(() => {}); }} />}
       </main>
@@ -789,6 +802,7 @@ function pageSubtitle(page) {
     bills: t("兑换、充值与订阅明细"),
     keys: t("创建和管理你的 API 访问密钥"),
     models: t("浏览可用模型、价格和接入方式"),
+    images: t("用已有密钥生成图片"),
     pelican: t("查看各分组模型的动态卡片、源代码和每小时记录"),
     plans: t("选择适合你的使用额度"),
   })[page] ?? '';

@@ -52,6 +52,7 @@ const STATUS_RELATED_KEYS = new Set([
   'passkey.origins',
   'QuotaRemindEnabled',
   'QuotaRemindThreshold',
+  'ImageStudioEnabled',
 ])
 
 export function useUpdateOption() {
@@ -95,6 +96,17 @@ export function useUpdateOption() {
             /* Storage can be disabled. */
           }
           window.dispatchEvent(new Event('ace-branding-updated'))
+        }
+        if (variables.key === 'ImageStudioEnabled') {
+          try {
+            window.localStorage.setItem(
+              'ace-image-studio-updated',
+              String(Date.now())
+            )
+          } catch {
+            /* Storage can be disabled. */
+          }
+          window.dispatchEvent(new Event('ace-image-studio-updated'))
         }
 
         // If updating frontend-display-related config, also refresh status

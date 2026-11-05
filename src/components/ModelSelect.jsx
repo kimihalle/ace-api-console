@@ -82,6 +82,10 @@ export default function ModelSelect({
     else if (optionRect.bottom > menuRect.bottom) menu.scrollTop += optionRect.bottom - menuRect.bottom;
   }, [activeIndex, open]);
 
+  useEffect(() => {
+    if (open && searchable) inputRef.current?.focus();
+  }, [open, searchable]);
+
   const choose = (item) => {
     if (!item || item.disabled) return;
     onChange?.(item.value, item);
@@ -133,19 +137,23 @@ export default function ModelSelect({
     <div ref={rootRef} className={`model-select ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) { setOpen(false); setQuery(''); }
     }}>
-      {searchable ? <div className="model-select__trigger model-select__search-control">
-        <input ref={inputRef} className="model-select__search-input" role="combobox" aria-label={ariaLabel} aria-autocomplete="list" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} disabled={disabled} autoComplete="off" spellCheck={false} value={open ? query : selected?.label ?? (allowCustom ? value : '')} placeholder={open && !allowCustom ? selected?.label || placeholder : placeholder} onFocus={() => { setQuery(allowCustom ? value || '' : ''); setOpen(true); }} onClick={() => { if (!open) { setQuery(allowCustom ? value || '' : ''); setOpen(true); } }} onChange={(event) => { setQuery(event.target.value); setOpen(true); if (allowCustom) onChange?.(event.target.value); }} onKeyDown={onKeyDown} />
-        <button type="button" className="model-select__toggle" tabIndex={-1} aria-label={ariaLabel} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => {
-          if (open) { setOpen(false); setQuery(''); }
-          else { inputRef.current?.focus(); setQuery(allowCustom ? value || '' : ''); setOpen(true); }
-        }}><span className="model-select__chevron" aria-hidden="true" /></button>
-      </div> : <button type="button" role="combobox" className="model-select__trigger" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} aria-label={ariaLabel} disabled={disabled} onClick={() => setOpen((current) => !current)} onKeyDown={onKeyDown}>
+      <button type="button" role="combobox" className={`model-select__trigger ${searchable ? 'model-select__search-trigger' : ''}`.trim()} aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} aria-label={ariaLabel} disabled={disabled} onClick={() => {
+        if (searchable && !open) {
+          setQuery(allowCustom ? value || '' : '');
+          setOpen(true);
+          return;
+        }
+        setOpen((current) => !current);
+        setQuery('');
+      }} onKeyDown={onKeyDown}>
         <span className={selected ? 'model-select__value model-select__label-content' : 'model-select__placeholder'}>{selected?.icon}<span>{selected?.label || placeholder}</span></span>
         {selected?.ratio != null && Number.isFinite(Number(selected.ratio)) && <span className={`mp-ratio mp-ratio-tone-${Number(selected.ratioTone) % 6}`} aria-label={t('倍率 {value}', { value: selected.ratio })}>×{selected.ratio}</span>}
         <span className="model-select__chevron" aria-hidden="true" />
-      </button>}
-      {open && <div id={listId} ref={listRef} className="model-select__menu" role="listbox" aria-label={ariaLabel} tabIndex={-1}>
-        {rows.length === 0 ? <div className="model-select__empty">{t("暂无可选项")}</div> : rows.map((row) => row.type === 'group' ? (
+      </button>
+      {open && <div className="model-select__menu">
+        {searchable && <input ref={inputRef} className="model-select__search-input" role="combobox" aria-label={`${ariaLabel}${t('搜索')}`} aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="true" aria-controls={listId} aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} autoComplete="off" spellCheck={false} value={query} placeholder={t('搜索…')} onChange={(event) => { setQuery(event.target.value); if (allowCustom) onChange?.(event.target.value); }} onKeyDown={onKeyDown} />}
+        <div id={listId} ref={listRef} className="model-select__options" role="listbox" aria-label={ariaLabel} tabIndex={-1}>
+          {rows.length === 0 ? <div className="model-select__empty">{t("暂无可选项")}</div> : rows.map((row) => row.type === 'group' ? (
           <div className="model-select__group" key={row.key}>{row.label}</div>
         ) : (
           <button type="button" id={`${listId}-${row.index}`} key={row.key} data-index={row.index} role="option" tabIndex={-1} aria-selected={String(row.item.value) === String(value)} disabled={row.item.disabled} className={`model-select__option ${row.index === activeIndex ? 'is-active' : ''} ${String(row.item.value) === String(value) ? 'is-selected' : ''}`.trim()} onMouseDown={(event) => { if (searchable) event.preventDefault(); }} onClick={() => choose(row.item)}>
@@ -154,6 +162,7 @@ export default function ModelSelect({
             {String(row.item.value) === String(value) && <span className="model-select__check" aria-hidden="true">✓</span>}
           </button>
         ))}
+        </div>
       </div>}
     </div>
   );

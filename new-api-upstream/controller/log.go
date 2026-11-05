@@ -29,6 +29,7 @@ func logFilterFromQuery(c *gin.Context, admin bool) model.LogFilter {
 		Group:             c.Query("group"),
 		RequestId:         c.Query("request_id"),
 		UpstreamRequestId: c.Query("upstream_request_id"),
+		ImageStudioOnly:   admin && c.Query("image_studio") == "true",
 	}
 	if admin {
 		filter.Username = c.Query("username")

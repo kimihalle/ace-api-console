@@ -29,6 +29,7 @@ beforeEach(() => {
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
+  client.setQueryData(['health-check-channels'], [])
 })
 
 afterEach(() => {

@@ -17,12 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery } from '@tanstack/react-query'
 import { useMemo, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import * as z from 'zod'
 
+import { ErrorState } from '@/components/error-state'
+import { MultiSelect } from '@/components/multi-select'
 import {
   Form,
   FormControl,
@@ -59,6 +62,7 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { safeNumberFieldProps } from '../utils/numeric-field'
+import { getHealthCheckChannels } from './api'
 import type { HealthSettings } from './defaults'
 import { useSavePolicy } from './use-save-policy'
 
@@ -101,6 +105,7 @@ const createChannelHealthSchema = (
             t('Channel test concurrency must be between 1 and 32')
           ),
         channel_test_mode: z.enum(channelTestModes),
+        channel_test_excluded_ids: z.array(z.number().int().positive()),
       }),
     })
     .superRefine((values, ctx) => {
@@ -140,6 +145,7 @@ type NormalizedChannelHealthValues = {
   'monitor_setting.auto_test_channel_minutes': number
   'monitor_setting.channel_test_concurrency': number
   'monitor_setting.channel_test_mode': ChannelTestMode
+  'monitor_setting.channel_test_excluded_ids': string
 }
 
 function normalizeChannelTestMode(value?: string): ChannelTestMode {
@@ -169,6 +175,8 @@ const buildFormDefaults = (
     channel_test_mode: normalizeChannelTestMode(
       defaults['monitor_setting.channel_test_mode']
     ),
+    channel_test_excluded_ids:
+      defaults['monitor_setting.channel_test_excluded_ids'] ?? [],
   },
 })
 
@@ -193,6 +201,11 @@ const normalizeDefaults = (
   'monitor_setting.channel_test_mode': normalizeChannelTestMode(
     defaults['monitor_setting.channel_test_mode']
   ),
+  'monitor_setting.channel_test_excluded_ids': JSON.stringify(
+    [
+      ...new Set(defaults['monitor_setting.channel_test_excluded_ids'] ?? []),
+    ].sort((a, b) => a - b)
+  ),
 })
 
 const normalizeFormValues = (
@@ -214,6 +227,11 @@ const normalizeFormValues = (
   'monitor_setting.channel_test_concurrency':
     values.monitor_setting.channel_test_concurrency,
   'monitor_setting.channel_test_mode': values.monitor_setting.channel_test_mode,
+  'monitor_setting.channel_test_excluded_ids': JSON.stringify(
+    [...new Set(values.monitor_setting.channel_test_excluded_ids)].sort(
+      (a, b) => a - b
+    )
+  ),
 })
 
 export function ChannelHealthSection({
@@ -221,6 +239,20 @@ export function ChannelHealthSection({
 }: ChannelHealthSectionProps) {
   const { t } = useTranslation()
   const updateOption = useSavePolicy()
+  const channels = useQuery({
+    queryKey: ['health-check-channels'],
+    queryFn: getHealthCheckChannels,
+    staleTime: 60000,
+    meta: { errorToast: false },
+  })
+  const channelOptions = useMemo(
+    () =>
+      (channels.data ?? []).map((channel) => ({
+        value: String(channel.id),
+        label: channel.name,
+      })),
+    [channels.data]
+  )
   const channelHealthSchema = createChannelHealthSchema(t)
   const baselineRef = useRef<NormalizedChannelHealthValues>(
     normalizeDefaults(defaultValues)
@@ -435,6 +467,44 @@ export function ChannelHealthSection({
                   />
                 </SettingsControlChildren>
               </SettingsControlGroup>
+
+              <FormField
+                control={form.control}
+                name='monitor_setting.channel_test_excluded_ids'
+                render={({ field }) => (
+                  <FormItem className='col-span-full'>
+                    <FormLabel>{t('Excluded channels')}</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={channelOptions}
+                        selected={field.value.map(String)}
+                        onChange={(values) =>
+                          field.onChange(values.map(Number))
+                        }
+                        placeholder={t(
+                          'Select channels to exclude from health checks'
+                        )}
+                        disabled={channels.isPending || channels.isError}
+                        maxVisibleChips={5}
+                        emptyText={t('No matching channels')}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Excluded channels are skipped by scheduled and bulk health checks. They remain available for API requests and individual manual tests.'
+                      )}
+                    </FormDescription>
+                    {channels.isError && (
+                      <ErrorState
+                        title={t('Failed to fetch channels')}
+                        onRetry={() => void channels.refetch()}
+                        className='min-h-0 py-4'
+                      />
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

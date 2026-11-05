@@ -33,8 +33,10 @@ import {
   waitFor,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import i18next from 'i18next'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import chinese from '@/i18n/locales/zh.json'
 import { api } from '@/lib/api'
 import { Route as ModelsRoute } from '@/routes/_authenticated/system-settings/models/$section'
 import { Route as OperationsRoute } from '@/routes/_authenticated/system-settings/operations/$section'
@@ -43,6 +45,7 @@ import { Route as PolicyIndexRoute } from '@/routes/_authenticated/system-settin
 import { Route as SecurityRoute } from '@/routes/_authenticated/system-settings/security/$section'
 
 import { RequestPolicies } from '..'
+import { getHealthCheckChannels } from '../api'
 import {
   defaultRequestPolicySettings,
   type RequestPolicySettings,
@@ -58,7 +61,7 @@ function optionsResponse() {
     success: true,
     data: Object.entries(settings).map(([key, value]) => ({
       key,
-      value: String(value),
+      value: Array.isArray(value) ? JSON.stringify(value) : String(value),
     })),
   }
 }
@@ -148,6 +151,22 @@ beforeEach(() => {
     },
   })
   vi.spyOn(api, 'get').mockImplementation(async (url) => {
+    if (url === '/api/channel') {
+      return {
+        data: {
+          success: true,
+          data: {
+            items: [
+              { id: 2, name: 'Image channel' },
+              { id: 7, name: 'Backup images' },
+            ],
+            total: 2,
+            page: 1,
+            page_size: 100,
+          },
+        },
+      }
+    }
     if (url === '/api/option/') return { data: optionsResponse() }
     if (url === '/api/option/request_policy') {
       return {
@@ -157,7 +176,7 @@ beforeEach(() => {
             options: Object.fromEntries(
               Object.entries(settings).map(([key, value]) => [
                 key,
-                String(value),
+                Array.isArray(value) ? JSON.stringify(value) : String(value),
               ])
             ),
           },
@@ -187,6 +206,122 @@ afterEach(() => {
 })
 
 describe('request policy settings', () => {
+  it('shows the exclusion control and explanation in Chinese when Chinese is selected', async () => {
+    i18next.addResourceBundle('zhCN', 'translation', chinese.translation)
+    await i18next.changeLanguage('zhCN')
+    try {
+      await renderPolicies('/system-settings/request-policies/health')
+      expect(await screen.findByText('排除渠道')).toBeVisible()
+      expect(
+        screen.getByRole('combobox', { name: '选择不参与健康检测的渠道' })
+      ).toBeVisible()
+      expect(
+        screen.getByText(
+          '所选渠道不参与定时检测和全部检测，用户仍可正常调用，也可以单独手动测试。'
+        )
+      ).toBeVisible()
+    } finally {
+      await i18next.changeLanguage('en')
+      i18next.removeResourceBundle('zhCN', 'translation')
+    }
+  })
+
+  it('loads every page so channels beyond the first page can be excluded', async () => {
+    vi.mocked(api.get).mockImplementation(async (_url, config) => {
+      const page = config?.params?.p as number
+      return {
+        data: {
+          success: true,
+          data: {
+            items: [{ id: page, name: `Channel ${page}` }],
+            total: 2,
+            page,
+            page_size: 1,
+          },
+        },
+      }
+    })
+    await expect(getHealthCheckChannels()).resolves.toEqual([
+      { id: 1, name: 'Channel 1' },
+      { id: 2, name: 'Channel 2' },
+    ])
+    expect(api.get).toHaveBeenCalledTimes(2)
+  })
+
+  it('selecting excluded channels saves their IDs without disabling the channels', async () => {
+    await renderPolicies('/system-settings/request-policies/health')
+    const select = await screen.findByRole('combobox', {
+      name: 'Select channels to exclude from health checks',
+    })
+    await waitFor(() => expect(select).toBeEnabled())
+    await userEvent.click(select)
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Image channel' })
+    )
+    await userEvent.click(select)
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Backup images' })
+    )
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledExactlyOnceWith(
+        '/api/option/request_policy',
+        { options: { 'monitor_setting.channel_test_excluded_ids': '[2,7]' } }
+      )
+    )
+    expect(api.put).not.toHaveBeenCalled()
+    expect(screen.getByText('Image channel')).toBeVisible()
+    expect(screen.getByText('Backup images')).toBeVisible()
+    expect(screen.queryByText(/#(2|7)/)).not.toBeInTheDocument()
+  })
+
+  it('removing a saved exclusion saves an empty list', async () => {
+    settings['monitor_setting.channel_test_excluded_ids'] = [2]
+    await renderPolicies('/system-settings/request-policies/health')
+    expect(await screen.findByText('Image channel')).toBeVisible()
+    const select = screen.getByRole('combobox', {
+      name: 'Select channels to exclude from health checks',
+    })
+    await userEvent.click(select)
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Image channel' })
+    )
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledExactlyOnceWith(
+        '/api/option/request_policy',
+        { options: { 'monitor_setting.channel_test_excluded_ids': '[]' } }
+      )
+    )
+    expect(api.put).not.toHaveBeenCalled()
+  })
+
+  it('a failed channel list load keeps saved exclusions and provides retry', async () => {
+    settings['monitor_setting.channel_test_excluded_ids'] = [2]
+    const originalGet = vi.mocked(api.get).getMockImplementation()
+    if (!originalGet) throw new Error('API fixture is missing')
+    vi.mocked(api.get).mockImplementation((url, config) => {
+      if (url === '/api/channel') {
+        return Promise.reject(new Error('Unavailable'))
+      }
+      return originalGet(url, config)
+    })
+    await renderPolicies('/system-settings/request-policies/health')
+    expect(await screen.findByText('Failed to fetch channels')).toBeVisible()
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Select channels to exclude from health checks',
+      })
+    ).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+    expect(api.patch).not.toHaveBeenCalled()
+    vi.mocked(api.get).mockImplementation(originalGet)
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('Image channel')).toBeVisible()
+  })
+
   it.each([
     ['retry', 'Save Changes'],
     ['health', 'Save Changes'],

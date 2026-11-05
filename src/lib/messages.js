@@ -1,5 +1,14 @@
 // Only interface copy belongs here. Site names, groups, vendors, models and user input stay unchanged.
 export const messages = {
+  '生成记录': 'Generation history', '生成详情': 'Generation details', '生成日期': 'Generated at', '提示词': 'Prompt',
+  '提示词已复制': 'Prompt copied', '复制提示词': 'Copy prompt', '下载图片': 'Download image', '查看详情': 'View details',
+  '查看图片': 'View image', '放大图片': 'Zoom in', '适应窗口': 'Fit to window', '模型默认': 'Model default',
+  '可用尺寸取决于所选模型': 'Available sizes depend on the selected model', '图片下载失败，请稍后重试': 'Image download failed. Please try again.',
+  '还没有生成记录': 'No generation history yet', '正在加载生成记录…': 'Loading generation history…',
+  '成功生成的图片会显示在这里。': 'Your generated images will appear here.',
+  '无法读取本地生成记录，请检查浏览器存储权限。': 'Could not read generation history. Check your browser storage settings.',
+  '图片已生成，但记录保存失败：{reason}': 'Image generated, but the record could not be saved: {reason}',
+  '调用使用所选密钥扣费。图片记录按账户保存在当前浏览器中。': 'Usage is charged to the selected key. Image records are saved per account in this browser.',
   '耗时': 'Duration',
   '通行密钥': 'Passkey', '微信': 'WeChat', '使用 {name} 登录': 'Sign in with {name}',
   '或使用通行密钥验证': 'Or verify with a passkey', '通行密钥域名': 'Passkey domain', '使用默认域名': 'Use default domain',

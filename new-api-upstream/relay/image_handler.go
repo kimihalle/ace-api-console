@@ -30,6 +30,18 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 	if !ok {
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected dto.ImageRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
+	if c.GetHeader("X-Ace-Image-Studio") == "1" {
+		prompt := []rune(imageReq.Prompt)
+		if len(prompt) > 160 {
+			prompt = prompt[:160]
+		}
+		c.Set("image_studio_prompt", string(prompt))
+		c.Set("image_studio_size", imageReq.Size)
+		c.Set("image_studio_quality", imageReq.Quality)
+		if count, err := imageReq.ImageCount(false); err == nil {
+			c.Set("image_studio_count", count)
+		}
+	}
 
 	request, err := common.DeepCopy(imageReq)
 	if err != nil {

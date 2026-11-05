@@ -23,6 +23,7 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
+  Image as ImageIcon,
   FlaskConical,
   Key,
   LayoutDashboard,
@@ -146,6 +147,12 @@ export function useSidebarData(): SidebarData {
             icon: ClipboardList,
           },
           { title: t('Task Logs'), url: '/usage-logs/task', icon: ListTodo },
+          {
+            title: t('Image generation records'),
+            url: '/image-studio',
+            icon: ImageIcon,
+            requiredRole: ROLE.ADMIN,
+          },
           {
             title: t('Pelican test'),
             url: '/pelican',

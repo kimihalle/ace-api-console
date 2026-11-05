@@ -1,4 +1,4 @@
-export const consolePages = ['dashboard', 'redeem', 'usage', 'bills', 'keys', 'models', 'pelican', 'plans'];
+export const consolePages = ['dashboard', 'redeem', 'usage', 'bills', 'keys', 'models', 'images', 'pelican', 'plans'];
 
 export function isConsolePath(path) {
   return path === '/console' || path.startsWith('/console/');

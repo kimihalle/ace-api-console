@@ -1197,7 +1197,8 @@ func performChannelTests(ctx context.Context, channels []*model.Channel, testUse
 // through here). It honors ctx cancellation so a runner that loses its lease
 // stops promptly. mode selects the channel set: an empty mode falls back to the
 // configured monitor ChannelTestMode (scheduled behavior), while a manual
-// trigger passes ChannelTestModeScheduledAll to test every channel. When notify
+// trigger passes ChannelTestModeScheduledAll. Both respect health check
+// exclusions; a channel's individual test remains available. When notify
 // is set, the administrators who receive channel notices are notified on
 // completion. Cross-instance execution is guarded by the system task per-type
 // lock, so no process-local guard is needed.
@@ -1210,12 +1211,13 @@ func runChannelTestTask(ctx context.Context, mode string, notify bool, report fu
 	if err != nil {
 		return channelTestSummary{}, err
 	}
+	monitor := operation_setting.GetMonitorSetting()
 	if strings.TrimSpace(mode) == "" {
-		mode = operation_setting.GetMonitorSetting().ChannelTestMode
+		mode = monitor.ChannelTestMode
 	}
-	selected := selectChannelsForAutomaticTest(channels, mode)
+	selected := selectChannelsForAutomaticTest(channels, mode, monitor.ChannelTestExcludedIDs)
 	allowDisable := mode != operation_setting.ChannelTestModePassiveRecovery
-	concurrency := operation_setting.GetMonitorSetting().ChannelTestConcurrency
+	concurrency := monitor.ChannelTestConcurrency
 	summary := performChannelTests(ctx, selected, testUserID, allowDisable, concurrency, report)
 	if notify && (ctx == nil || ctx.Err() == nil) {
 		service.NotifyChannelWatchers(dto.NotifyTypeChannelTest, func(lang string) (string, string) {
@@ -1225,9 +1227,16 @@ func runChannelTestTask(ctx context.Context, mode string, notify bool, report fu
 	return summary, nil
 }
 
-func selectChannelsForAutomaticTest(channels []*model.Channel, mode string) []*model.Channel {
+func selectChannelsForAutomaticTest(channels []*model.Channel, mode string, excludedIDs []int) []*model.Channel {
+	excluded := make(map[int]struct{}, len(excludedIDs))
+	for _, id := range excludedIDs {
+		excluded[id] = struct{}{}
+	}
 	selected := make([]*model.Channel, 0, len(channels))
 	for _, channel := range channels {
+		if _, skip := excluded[channel.Id]; skip {
+			continue
+		}
 		if channel.Status == common.ChannelStatusManuallyDisabled {
 			continue
 		}

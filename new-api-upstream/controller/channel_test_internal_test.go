@@ -334,7 +334,7 @@ func TestSelectChannelsForAutomaticTestPassiveRecoveryOnlyUsesAutoDisabled(t *te
 		{Id: 3, Status: common.ChannelStatusManuallyDisabled},
 	}
 
-	selected := selectChannelsForAutomaticTest(channels, operation_setting.ChannelTestModePassiveRecovery)
+	selected := selectChannelsForAutomaticTest(channels, operation_setting.ChannelTestModePassiveRecovery, nil)
 
 	require.Len(t, selected, 1)
 	require.Equal(t, 2, selected[0].Id)
@@ -347,7 +347,7 @@ func TestSelectChannelsForAutomaticTestScheduledSkipsManualDisabled(t *testing.T
 		{Id: 3, Status: common.ChannelStatusManuallyDisabled},
 	}
 
-	selected := selectChannelsForAutomaticTest(channels, operation_setting.ChannelTestModeScheduledAll)
+	selected := selectChannelsForAutomaticTest(channels, operation_setting.ChannelTestModeScheduledAll, nil)
 
 	require.Len(t, selected, 2)
 	require.Equal(t, 1, selected[0].Id)
@@ -365,11 +365,45 @@ func TestSelectChannelsForAutomaticTestAutoBanOnlyUsesEligibleChannels(t *testin
 		{Id: 5, Status: common.ChannelStatusEnabled},
 	}
 
-	selected := selectChannelsForAutomaticTest(channels, operation_setting.ChannelTestModeAutoBanOnly)
+	selected := selectChannelsForAutomaticTest(channels, operation_setting.ChannelTestModeAutoBanOnly, nil)
 
 	require.Len(t, selected, 2)
 	require.Equal(t, 1, selected[0].Id)
 	require.Equal(t, 3, selected[1].Id)
+}
+
+func TestHealthCheckExclusionsSkipChannelsWithoutDisablingThem(t *testing.T) {
+	autoBanEnabled := 1
+	for _, mode := range []string{
+		operation_setting.ChannelTestModeScheduledAll,
+		operation_setting.ChannelTestModeAutoBanOnly,
+		operation_setting.ChannelTestModePassiveRecovery,
+	} {
+		t.Run(mode, func(t *testing.T) {
+			channels := []*model.Channel{
+				{Id: 1, Status: common.ChannelStatusEnabled, AutoBan: &autoBanEnabled},
+				{Id: 2, Status: common.ChannelStatusEnabled, AutoBan: &autoBanEnabled},
+				{Id: 3, Status: common.ChannelStatusAutoDisabled, AutoBan: &autoBanEnabled},
+				{Id: 4, Status: common.ChannelStatusAutoDisabled, AutoBan: &autoBanEnabled},
+			}
+			selected := selectChannelsForAutomaticTest(channels, mode, []int{2, 3, 2, 999})
+			ids := make([]int, 0, len(selected))
+			for _, channel := range selected {
+				ids = append(ids, channel.Id)
+			}
+			if mode == operation_setting.ChannelTestModePassiveRecovery {
+				assert.Equal(t, []int{4}, ids)
+			} else {
+				assert.Equal(t, []int{1, 4}, ids)
+			}
+			assert.Equal(t, common.ChannelStatusEnabled, channels[1].Status)
+			assert.Equal(t, common.ChannelStatusAutoDisabled, channels[2].Status)
+			assert.True(t, channels[1].GetAutoBan())
+
+			selected = selectChannelsForAutomaticTest(channels, mode, nil)
+			assert.Contains(t, selected, channels[2], "removing an exclusion restores the channel to health checks")
+		})
+	}
 }
 
 func TestRunChannelTestWorkersHonorsConfiguredConcurrency(t *testing.T) {

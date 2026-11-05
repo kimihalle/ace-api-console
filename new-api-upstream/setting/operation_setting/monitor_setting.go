@@ -13,6 +13,7 @@ type MonitorSetting struct {
 	AutoTestChannelMinutes float64 `json:"auto_test_channel_minutes"`
 	ChannelTestMode        string  `json:"channel_test_mode"`
 	ChannelTestConcurrency int     `json:"channel_test_concurrency"`
+	ChannelTestExcludedIDs []int   `json:"channel_test_excluded_ids"`
 }
 
 const (
@@ -31,6 +32,7 @@ var monitorSetting = MonitorSetting{
 	AutoTestChannelMinutes: 10,
 	ChannelTestMode:        ChannelTestModeScheduledAll,
 	ChannelTestConcurrency: DefaultChannelTestConcurrency,
+	ChannelTestExcludedIDs: []int{},
 }
 
 func init() {

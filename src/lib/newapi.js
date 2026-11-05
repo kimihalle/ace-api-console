@@ -185,6 +185,20 @@ export function apiBaseLabel() {
   return API_ROOT || (typeof window !== 'undefined' ? window.location.origin : '');
 }
 
+export async function generateImage(secret, payload, signal) {
+  const response = await fetch(`${API_ROOT}/v1/images/generations`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json', 'X-Ace-Image-Studio': '1' },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.error) {
+    throw new Error(result?.error?.message || result?.message || `生成失败 (${response.status})`);
+  }
+  return result;
+}
+
 export function newApiConsoleUrl() {
   const consoleRoot = ADMIN_CONSOLE_URL || API_ROOT || (typeof window !== 'undefined' ? window.location.origin : '');
   return consoleRoot ? `${consoleRoot.replace(/\/$/, '')}/newapi-admin/users` : '';

@@ -43,6 +43,7 @@ import { useUpdateOption } from '../hooks/use-update-option'
 
 const drawingSchema = z.object({
   DrawingEnabled: z.boolean(),
+  ImageStudioEnabled: z.boolean(),
   MjNotifyEnabled: z.boolean(),
   MjAccountFilterEnabled: z.boolean(),
   MjForwardUrlEnabled: z.boolean(),
@@ -85,6 +86,13 @@ export function DrawingSettingsSection({
     label: string
     description: string
   }> = [
+    {
+      name: 'ImageStudioEnabled',
+      label: t('Show image generation menu'),
+      description: t(
+        'Show the image generation page in the customer workspace.'
+      ),
+    },
     {
       name: 'DrawingEnabled',
       label: t('Enable drawing features'),

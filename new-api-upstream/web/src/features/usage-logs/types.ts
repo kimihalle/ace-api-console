@@ -425,6 +425,8 @@ export interface TaskArtifactsResponse {
 // ============================================================================
 
 export interface GetLogsParams {
+  image_studio?: boolean
+  usage_only?: boolean
   p?: number
   page_size?: number
   type?: number

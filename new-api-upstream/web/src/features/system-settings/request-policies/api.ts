@@ -1,5 +1,32 @@
+import { getChannels } from '@/features/channels/api'
+import type { Channel } from '@/features/channels/types'
 import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
+
+export async function getHealthCheckChannels(): Promise<
+  Pick<Channel, 'id' | 'name'>[]
+> {
+  const channels: Pick<Channel, 'id' | 'name'>[] = []
+  for (let page = 1; ; page += 1) {
+    const response = requireServerSuccess(
+      await getChannels({
+        p: page,
+        page_size: 100,
+        tag_mode: false,
+        sort_by: 'id',
+        sort_order: 'asc',
+      })
+    )
+    if (!response.data) throw new Error('Failed to fetch channels')
+    channels.push(...response.data.items.map(({ id, name }) => ({ id, name })))
+    if (
+      response.data.items.length === 0 ||
+      page * response.data.page_size >= response.data.total
+    ) {
+      return channels
+    }
+  }
+}
 
 export type PolicyConfig = {
   options: Record<string, string>
