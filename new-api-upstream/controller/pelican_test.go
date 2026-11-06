@@ -257,7 +257,7 @@ func TestPelicanPersistenceAndPublicContract(t *testing.T) {
 	require.NoError(t, model.FinishPelicanSample(sample, testPelicanSVG, "", 345))
 	stale := &model.PelicanSample{TargetKey: "stale", Hour: now.Unix() / 3600 * 3600, RouteGroup: "vip", ModelName: "gpt-4o-mini", Status: "success", SVG: `<svg><path d="`}
 	require.NoError(t, db.Create(stale).Error)
-	reconcilePelicanSample(stale)
+	require.NoError(t, reconcilePelicanSample(stale))
 	require.Equal(t, "failed", stale.Status)
 	require.Equal(t, "invalid_svg", stale.ErrorCode)
 	// Manual retries may reclaim an earlier failure, never success/running rows
@@ -336,7 +336,7 @@ func TestPelicanPersistenceAndPublicContract(t *testing.T) {
 	require.Equal(t, largeHTML, decoded.Data.Source)
 	var htmlSample model.PelicanSample
 	require.NoError(t, db.First(&htmlSample, sample.ID).Error)
-	reconcilePelicanSample(&htmlSample)
+	require.NoError(t, reconcilePelicanSample(&htmlSample))
 	require.Equal(t, "success", htmlSample.Status, "HTML must not be reclassified by the legacy SVG validator")
 	require.NoError(t, db.Model(sample).Update("prompt_version", "pelican-svg-v3").Error)
 	detailedSVG := `<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><style>circle { fill: red; }</style><script>alert(1)</script><foreignObject><div>kept for inspection</div></foreignObject><image href="https://example.test/image.png"/><circle r="20"/></svg>`
@@ -376,6 +376,104 @@ func TestPelicanPersistenceAndPublicContract(t *testing.T) {
 	_, err = model.PelicanDue(config, now)
 	require.NoError(t, err)
 	require.NoError(t, runPelicanSamples(context.Background(), func(int, int) {}), "disabled schedule must never contact an upstream")
+
+	t.Run("public gallery exposes only valid successes and fills pages across failed attempts", func(t *testing.T) {
+		const name = "success-contract"
+		const emptyName = "empty-contract"
+		for _, modelName := range []string{name, emptyName} {
+			require.NoError(t, db.Create(&model.Ability{Group: "vip", Model: modelName, ChannelId: 1, Enabled: true}).Error)
+		}
+		selected := model.PelicanConfig{Enabled: true, PublicEnabled: true, RetentionDays: 7, Targets: []model.PelicanTarget{{Group: "vip", Models: []string{name, emptyName}}}}
+		require.NoError(t, model.SavePelicanConfig(selected))
+		var expected []model.PelicanSample
+		var invalidIDs []int64
+		for i := range 32 {
+			record := model.PelicanSample{
+				TargetKey: model.PelicanTargetKey("vip", name), RouteGroup: "vip", ModelName: name,
+				Hour: now.Truncate(time.Hour).Add(-time.Duration(i) * time.Hour).Unix(), CheckedAt: now.Unix(),
+				Status: "success", PromptVersion: model.PelicanPromptVersion, SVG: testPelicanHTML,
+			}
+			switch i {
+			case 0, 12:
+				record.Status, record.ErrorCode, record.SVG = "failed", "upstream_error", ""
+			case 1, 20:
+				record.Status, record.SVG = "running", ""
+			case 2:
+				record.PromptVersion, record.SVG = "pelican-svg-v3", `<svg><path d="`
+			case 3:
+				record.SVG = "<!DOCTYPE html><html><body>truncated"
+			}
+			require.NoError(t, db.Create(&record).Error)
+			if i == 2 || i == 3 {
+				invalidIDs = append(invalidIDs, record.ID)
+			} else if record.Status == "success" {
+				expected = append(expected, record)
+			}
+		}
+		emptyRecord := model.PelicanSample{TargetKey: model.PelicanTargetKey("vip", emptyName), RouteGroup: "vip", ModelName: emptyName, Hour: now.Truncate(time.Hour).Unix(), Status: "failed", ErrorCode: "upstream_error"}
+		require.NoError(t, db.Create(&emptyRecord).Error)
+		expired := model.PelicanSample{TargetKey: model.PelicanTargetKey("vip", name), RouteGroup: "vip", ModelName: name, Hour: now.Add(-8 * 24 * time.Hour).Unix(), Status: "success", PromptVersion: model.PelicanPromptVersion, SVG: testPelicanHTML}
+		require.NoError(t, db.Create(&expired).Error)
+		var public struct {
+			Data struct {
+				Targets []struct {
+					Latest *model.PelicanSample `json:"latest"`
+				} `json:"targets"`
+			} `json:"data"`
+		}
+		response := request("/catalog")
+		require.Equal(t, http.StatusOK, response.Code)
+		require.NoError(t, common.Unmarshal(response.Body.Bytes(), &public))
+		require.Len(t, public.Data.Targets, 2)
+		require.NotNil(t, public.Data.Targets[0].Latest)
+		require.Equal(t, expected[0].ID, public.Data.Targets[0].Latest.ID, "catalog must fall back past failures, running attempts and broken legacy successes")
+		require.Nil(t, public.Data.Targets[1].Latest, "a target without successful works must not expose a failure")
+		readHistory := func(query string) ([]model.PelicanSample, int64) {
+			response := request("/history?group=vip&" + query)
+			require.Equal(t, http.StatusOK, response.Code)
+			var body struct {
+				Data struct {
+					Records []model.PelicanSample `json:"records"`
+					Next    int64                 `json:"next_before"`
+				} `json:"data"`
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &body))
+			for _, record := range body.Data.Records {
+				require.Equal(t, "success", record.Status)
+				require.Empty(t, record.ErrorCode)
+			}
+			return body.Data.Records, body.Data.Next
+		}
+		first, next := readHistory("model=" + name + "&status=failed")
+		require.Len(t, first, 24, "failures must not consume public pagination slots")
+		require.Equal(t, first[23].Hour, next)
+		second, end := readHistory(fmt.Sprintf("model=%s&before=%d", name, next))
+		require.Len(t, second, 2)
+		require.Zero(t, end)
+		for i, record := range append(first, second...) {
+			require.Equal(t, expected[i].ID, record.ID, "pagination must not skip or duplicate successful works")
+		}
+		exact, end := readHistory(fmt.Sprintf("model=%s&before=%d", name, expected[1].Hour))
+		require.Len(t, exact, 24)
+		require.Zero(t, end, "a full final page must not link to an empty page")
+		empty, end := readHistory("model=" + emptyName)
+		require.Empty(t, empty)
+		require.NotNil(t, empty, "empty history must serialize as an array")
+		require.Zero(t, end)
+		// Retry history after reintroducing legacy invalid content, without a
+		// preceding catalog read, to verify validation cannot create page holes.
+		require.NoError(t, db.Model(&model.PelicanSample{}).Where("id IN ?", invalidIDs).Updates(map[string]any{"status": "success", "error_code": ""}).Error)
+		first, _ = readHistory("model=" + name)
+		require.Len(t, first, 24)
+		require.Equal(t, expected[0].ID, first[0].ID)
+		admin, err := model.QueryPelicanSamplesAdmin("vip", name, 0, 100, "all")
+		require.NoError(t, err)
+		require.Len(t, admin, 33, "public filtering must preserve every admin record, including expired works")
+		failed, err := model.QueryPelicanSamplesAdmin("vip", name, 0, 100, "failed")
+		require.NoError(t, err)
+		require.Len(t, failed, 4, "admin keeps both upstream failures and reclassified invalid works")
+		require.NoError(t, model.SavePelicanConfig(config))
+	})
 
 	t.Run("removing groups survives stale selections and revokes public access without deleting history", func(t *testing.T) {
 		require.NoError(t, db.Create(&model.Channel{Id: 2, Type: constant.ChannelTypeOpenAI, Name: "stale-selection", Key: "isolated", Group: "default", Models: "gpt-4o-mini", Status: common.ChannelStatusEnabled}).Error)

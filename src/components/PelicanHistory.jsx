@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, History, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { request } from '../lib/newapi.js';
-import { mergePelicanHistory } from '../lib/pelican-preview.js';
+import { mergePelicanHistory, successfulPelicanRecords } from '../lib/pelican-preview.js';
 import { useLanguage } from '../lib/use-language.js';
 import Dialog from './Dialog.jsx';
 import SampleImage from './PelicanSamplePreview.jsx';
@@ -12,7 +12,6 @@ export default function PelicanHistory({ target, initialId, initialFocus = false
   const [cursor, setCursor] = useState(0);
   const [revision, setRevision] = useState(0);
   const [selectedId, setSelectedId] = useState(initialId ?? null);
-  const [filter, setFilter] = useState('all');
   const [focused, setFocused] = useState(initialFocus);
   useEffect(() => {
     let active = true;
@@ -23,8 +22,8 @@ export default function PelicanHistory({ target, initialId, initialFocus = false
     return () => { active = false; };
   }, [target.group, target.model, cursor, revision]);
 
-  const records = state.records.filter((record) => filter === 'all' || record.status === filter);
-  const sample = records.find((record) => record.id === selectedId) || records.find((record) => record.status === 'success') || records[0];
+  const records = successfulPelicanRecords(state.records);
+  const sample = records.find((record) => record.id === selectedId) || records[0];
   const index = records.findIndex((record) => record.id === sample?.id);
   const shortTime = (timestamp) => new Date(timestamp * 1000).toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -37,14 +36,11 @@ export default function PelicanHistory({ target, initialId, initialFocus = false
     </div>
     <div className="pelican-history-workspace">
       <aside className="pelican-history-sidebar" aria-label={t('实测时间轴')}>
-        <div className="pelican-history-sidebar-heading"><History size={15} /><strong>{t('实测时间轴')}</strong><span>{t('已加载 {count} 条', { count: state.records.length })}</span></div>
-        <div className="pelican-history-filters" role="group" aria-label={t('筛选实测状态')}>
-          {[['all', '全部'], ['success', '成功'], ['failed', '失败']].map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => { setFilter(value); setSelectedId(null); }}>{t(label)}</button>)}
-        </div>
+        <div className="pelican-history-sidebar-heading"><History size={15} /><strong>{t('实测时间轴')}</strong><span>{t('已加载 {count} 条', { count: records.length })}</span></div>
         <div className="pelican-history">
           {records.map((record) => <button type="button" key={record.id} className={`pelican-history-item ${record.status}${sample?.id === record.id ? ' selected' : ''}`} aria-pressed={sample?.id === record.id} onClick={() => setSelectedId(record.id)}>
             <span className="pelican-history-dot" />
-            <span className="pelican-history-label"><time dateTime={new Date(record.hour * 1000).toISOString()}>{shortTime(record.hour)}</time><span className={`pelican-status ${record.status}`}>{t(record.status === 'success' ? '生成成功' : record.status === 'running' ? '正在生成…' : '生成失败')}</span></span>
+            <span className="pelican-history-label"><time dateTime={new Date(record.hour * 1000).toISOString()}>{shortTime(record.hour)}</time></span>
             <span className="pelican-history-duration">{t('耗时 {seconds} 秒', { seconds: (record.latency_ms / 1000).toLocaleString(locale, { maximumFractionDigits: 3 }) })}</span>
             {sample?.id === record.id && <Check size={14} className="pelican-history-selected" />}
           </button>)}
@@ -53,7 +49,7 @@ export default function PelicanHistory({ target, initialId, initialFocus = false
           {state.error && <div role="alert" className="pelican-retry">{t('实测记录暂时无法加载')}<button onClick={() => setRevision((n) => n + 1)}>{t('重试')}</button></div>}
           {state.next > 0 && !state.error && <button className="pelican-load-earlier" disabled={state.loading} onClick={() => setCursor(state.next)}>{t('加载更早记录')}</button>}
         </div>
-        <p className="pelican-history-disclaimer">{t('没有记录的时段表示未采样，不代表检测成功。')}</p>
+        <p className="pelican-history-disclaimer">{t('仅展示成功生成的作品。')}</p>
       </aside>
       <section className="pelican-history-stage" aria-label={t('实测结果大预览')}>
         <header className="pelican-stage-heading">
@@ -66,7 +62,6 @@ export default function PelicanHistory({ target, initialId, initialFocus = false
         </header>
         <div className="pelican-stage-visual"><SampleImage key={sample?.id ?? 'empty'} sample={sample} model={target.model} /></div>
         {sample && <footer className="pelican-stage-meta">
-          <span className={`pelican-status ${sample.status}`}>{t(sample.status === 'success' ? '生成成功' : sample.status === 'running' ? '正在生成…' : '生成失败')}</span>
           <span>{t('耗时 {seconds} 秒', { seconds: (sample.latency_ms / 1000).toLocaleString(locale, { maximumFractionDigits: 3 }) })}</span>
           <span>{t('实际检测时间')} {new Date(sample.checked_at * 1000).toLocaleString(locale)}</span>
           <span className="pelican-prompt-version">{sample.prompt_version}</span>

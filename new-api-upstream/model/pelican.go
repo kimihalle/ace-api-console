@@ -261,6 +261,17 @@ func QueryPelicanSamples(group, name string, before int64, limit int, retentionD
 	return rows, err
 }
 
+// Filter before limiting so failed/running attempts cannot hide older public works.
+func QuerySuccessfulPelicanSamples(group, name string, before int64, limit int, retentionDays int) ([]PelicanSample, error) {
+	rows := []PelicanSample{}
+	query := DB.Omit("svg").Where("target_key = ? AND hour >= ? AND status = ?", PelicanTargetKey(group, name), time.Now().Unix()-int64(retentionDays)*86400, "success")
+	if before > 0 {
+		query = query.Where("hour < ?", before)
+	}
+	err := query.Order("hour DESC").Limit(min(max(limit, 1), 48)).Find(&rows).Error
+	return rows, err
+}
+
 func QueryPelicanSamplesAdmin(group, name string, before int64, limit int, status string) ([]PelicanSample, error) {
 	rows := []PelicanSample{}
 	query := DB.Omit("svg").Order("id DESC")

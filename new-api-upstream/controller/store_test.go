@@ -4,20 +4,25 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/html"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -265,9 +270,13 @@ func TestStoreCatalogOrdersAndOwnerAccess(t *testing.T) {
 	assert.Contains(t, response.Body.String(), `"message":"success"`)
 	var result struct {
 		OrderID string `json:"order_id"`
+		Data    struct {
+			PaymentURL string `json:"payment_url"`
+		} `json:"data"`
 	}
 	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
 	require.NotEmpty(t, result.OrderID)
+	assert.Equal(t, storeEpayCheckoutURL(result.OrderID), result.Data.PaymentURL, "store purchases must return the protected checkout link instead of gateway MD5 fields")
 	owner := request("GET", "/orders/"+result.OrderID, "", user.Id)
 	assert.NotContains(t, owner.Body.String(), `"redemption":`)
 	operation_setting.GetPaymentSetting().StoreDeliveryMode = "balance" // Existing orders retain their delivery snapshot.
@@ -284,4 +293,119 @@ func TestStoreCatalogOrdersAndOwnerAccess(t *testing.T) {
 	encoded, err := common.Marshal(listed)
 	require.NoError(t, err)
 	assert.NotContains(t, string(encoded), `"key":`, "plain codes never appear in list APIs")
+}
+
+func TestStoreEpayCheckoutProtectsSignedParameters(t *testing.T) {
+	db := storeTestDatabase(t)
+	require.NoError(t, db.AutoMigrate(&model.TopUp{}))
+	require.NoError(t, i18n.Init())
+	oldPayment := *operation_setting.GetPaymentSetting()
+	oldAddress, oldID, oldKey := operation_setting.PayAddress, operation_setting.EpayId, operation_setting.EpayKey
+	oldMethods, oldCallback := operation_setting.PayMethods, operation_setting.CustomCallbackAddress
+	oldServer, oldOrigins, oldSecret := system_setting.ServerAddress, common.SessionCookieTrustedURLs, common.CryptoSecret
+	t.Cleanup(func() {
+		*operation_setting.GetPaymentSetting() = oldPayment
+		operation_setting.PayAddress, operation_setting.EpayId, operation_setting.EpayKey = oldAddress, oldID, oldKey
+		operation_setting.PayMethods, operation_setting.CustomCallbackAddress = oldMethods, oldCallback
+		system_setting.ServerAddress, common.SessionCookieTrustedURLs, common.CryptoSecret = oldServer, oldOrigins, oldSecret
+	})
+	operation_setting.GetPaymentSetting().ComplianceConfirmed = true
+	operation_setting.GetPaymentSetting().ComplianceTermsVersion = operation_setting.CurrentComplianceTermsVersion
+	operation_setting.PayAddress, operation_setting.EpayId, operation_setting.EpayKey = "https://gateway.example.test", "1", "isolated-test-key"
+	operation_setting.PayMethods = []map[string]string{{"type": "alipay"}, {"type": "wxpay"}}
+	operation_setting.CustomCallbackAddress = "https://notify.example.test"
+	system_setting.ServerAddress = "http://localhost:3000"
+	common.SessionCookieTrustedURLs = []string{"https://shop.example.test"}
+	common.CryptoSecret = "isolated-checkout-test-secret"
+	user := &model.User{Username: common.GetUUID(), AffCode: common.GetRandomString(8), Group: "default", Quota: 123}
+	require.NoError(t, db.Create(user).Error)
+	router := gin.New()
+	router.GET("/api/user/store/checkout/:trade_no/:signature", GetStoreEpayCheckout)
+	request := func(path string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Accept-Language", "zh-CN")
+		req.Header.Set("User-Agent", "AlipayClient/10.6")
+		req.Header.Set("X-Forwarded-Host", "untrusted.example.test")
+		router.ServeHTTP(response, req)
+		return response
+	}
+	for _, method := range []string{"alipay", "wxpay"} {
+		t.Run(method, func(t *testing.T) {
+			order := &model.TopUp{UserId: user.Id, TradeNo: common.GetUUID(), Amount: 10, Money: 8, PaymentProvider: model.PaymentProviderEpay, PaymentMethod: method, Status: common.TopUpStatusPending, DeliveryMode: model.TopUpDeliveryRedemption, CreditedQuota: 5000000, CreateTime: time.Now().Unix()}
+			require.NoError(t, order.Insert())
+			link, err := url.Parse(storeEpayCheckoutURL(order.TradeNo))
+			require.NoError(t, err)
+			assert.Equal(t, "shop.example.test", link.Host)
+			assert.Empty(t, link.RawQuery, "the QR must not carry Epay's signed fields in the query")
+			var originalFields map[string]string
+			for _, suffix := range []string{"", "?from=scan&money=0.01&sign=modified&return_url=https%3A%2F%2Funtrusted.example.test", ""} {
+				response := request(link.RequestURI() + suffix)
+				require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+				assert.Equal(t, "no-store", response.Header().Get("Cache-Control"))
+				assert.Equal(t, "no-referrer", response.Header().Get("Referrer-Policy"))
+				assert.Equal(t, "DENY", response.Header().Get("X-Frame-Options"))
+				assert.Contains(t, response.Header().Get("Content-Security-Policy"), "script-src 'nonce-")
+				assert.Contains(t, response.Body.String(), "继续付款")
+				assert.NotContains(t, response.Body.String(), operation_setting.EpayKey)
+				assert.NotContains(t, response.Body.String(), "untrusted.example.test")
+				fields := map[string]string{}
+				tokens := html.NewTokenizer(strings.NewReader(response.Body.String()))
+				for tokenType := tokens.Next(); tokenType != html.ErrorToken; tokenType = tokens.Next() {
+					if tokenType != html.StartTagToken && tokenType != html.SelfClosingTagToken {
+						continue
+					}
+					token := tokens.Token()
+					attrs := map[string]string{}
+					for _, attr := range token.Attr {
+						attrs[attr.Key] = attr.Val
+					}
+					if token.Data == "form" {
+						assert.Equal(t, "post", attrs["method"])
+						assert.Equal(t, "https://gateway.example.test/submit.php", attrs["action"])
+					}
+					if token.Data == "input" {
+						fields[attrs["name"]] = attrs["value"]
+					}
+				}
+				assert.Equal(t, "8.00", fields["money"], "use the stored order price")
+				assert.Equal(t, "mobile", fields["device"])
+				assert.Equal(t, method, fields["type"])
+				assert.Equal(t, "https://notify.example.test/api/user/epay/notify", fields["notify_url"])
+				assert.Equal(t, "https://shop.example.test/console/plans?order="+order.TradeNo, fields["return_url"])
+				verified, err := GetEpayClient().Verify(fields)
+				require.NoError(t, err)
+				assert.True(t, verified.VerifyStatus, "posted form values must match the MD5 signature")
+				if originalFields == nil {
+					originalFields = fields
+				} else {
+					assert.Equal(t, originalFields, fields, "scan tracking parameters and repeat scans must not change signed fields")
+				}
+			}
+			// Demonstrate why adding scanner parameters to the old direct URL
+			// invalidates the signature, while the new endpoint ignores them.
+			originalFields["from"] = "scan"
+			verified, err := GetEpayClient().Verify(originalFields)
+			require.NoError(t, err)
+			assert.False(t, verified.VerifyStatus)
+			var stored model.TopUp
+			require.NoError(t, db.First(&stored, order.Id).Error)
+			assert.Equal(t, common.TopUpStatusPending, stored.Status, "opening checkout must never settle payment")
+			assert.Zero(t, stored.RedemptionId)
+			badSignature := link.Path[:len(link.Path)-64] + strings.Repeat("0", 64)
+			assert.Equal(t, http.StatusNotFound, request(badSignature).Code)
+			assert.Equal(t, http.StatusNotFound, request(strings.Replace(link.Path, order.TradeNo, "another-order", 1)).Code)
+			for _, state := range []string{common.TopUpStatusSuccess, common.TopUpStatusExpired} {
+				require.NoError(t, db.Model(order).Update("status", state).Error)
+				assert.Equal(t, http.StatusGone, request(link.Path).Code)
+			}
+			require.NoError(t, db.Model(order).Updates(map[string]any{"status": common.TopUpStatusPending, "create_time": time.Now().Add(-31 * time.Minute).Unix()}).Error)
+			assert.Equal(t, http.StatusGone, request(link.Path).Code)
+			require.NoError(t, db.Model(order).Updates(map[string]any{"create_time": time.Now().Unix(), "payment_provider": model.PaymentProviderStripe}).Error)
+			assert.Equal(t, http.StatusGone, request(link.Path).Code)
+		})
+	}
+	var storedUser model.User
+	require.NoError(t, db.First(&storedUser, user.Id).Error)
+	assert.Equal(t, user.Quota, storedUser.Quota, "checkout must not change the wallet")
 }

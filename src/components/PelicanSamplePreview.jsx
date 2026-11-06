@@ -42,7 +42,7 @@ export default function PelicanSamplePreview({ sample, model, replayVersion = 0,
     return () => controller.abort();
   }, [sample?.id, sample?.status, sample?.checked_at, attempt, visible]);
 
-  if (!sample) return <div ref={host} className="pelican-placeholder"><Bird size={32} /><strong>{t('等待首次实测')}</strong></div>;
+  if (!sample) return <div ref={host} className="pelican-placeholder"><Bird size={32} /><strong>{t('暂无可展示的作品')}</strong></div>;
   if (sample.status !== 'success' || failed) return <div ref={host} className={`pelican-placeholder ${sample.status}`}>
     <Clock3 size={30} />
     <strong>{failed ? t('卡片暂时无法显示') : sample.status === 'running' ? t('正在生成…') : t(errorLabels[sample.error_code] || '卡片暂时无法显示')}</strong>

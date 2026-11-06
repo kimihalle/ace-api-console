@@ -366,6 +366,10 @@ func RequestEpay(c *gin.Context) {
 		return
 	}
 	logger.LogInfo(c.Request.Context(), common.LogText("Epay top-up order created user_id=%d trade_no=%s payment_method=%s amount=%d money=%.2f uri=%q params=%q", id, tradeNo, req.PaymentMethod, req.Amount, payMoney, uri, common.GetJsonString(params)))
+	if c.GetString("store_delivery_mode") != "" {
+		c.JSON(http.StatusOK, gin.H{"message": "success", "order_id": tradeNo, "data": gin.H{"order_id": tradeNo, "payment_url": storeEpayCheckoutURL(tradeNo)}})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": params, "url": uri, "order_id": tradeNo})
 }
 

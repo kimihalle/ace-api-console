@@ -1,5 +1,9 @@
 # Chinese (Simplified) translations
 # 中文（简体）翻译文件
+payment.checkout_title: "正在打开支付"
+payment.checkout_hint: "若未自动打开，请点击下方按钮继续付款。"
+payment.checkout_continue: "继续付款"
+payment.checkout_unavailable: "付款链接无效、已过期或已不可用。请返回网站查看订单，或重新创建订单。"
 
 # Errors returned to AI clients
 common.database_error: "数据库出错，请联系管理员"

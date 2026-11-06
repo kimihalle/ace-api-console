@@ -25,6 +25,12 @@ test('delivery options honor the enabled administrator mode', () => {
   assert.deepEqual(storeDeliveryModes({ delivery_modes: ['redemption'], redemption_enabled: false }), []);
 });
 
+test('store QR uses the server checkout link verbatim without adding signed gateway fields', () => {
+  const paymentUrl = 'https://shop.example.test/api/user/store/checkout/order-1/abc123';
+  assert.deepEqual(storeCheckout({ message: 'success', order_id: 'order-1', data: { order_id: 'order-1', payment_url: paymentUrl } }), { orderId: 'order-1', url: paymentUrl });
+  assert.equal(new URL(storeCheckout({ data: { order_id: 'order-1', payment_url: paymentUrl } }).url).search, '');
+});
+
 test('QR payment links preserve signed special characters and reject invalid payloads', () => {
   const fields = { sign: 'fixture', name: 'API & 额度 + 10', return_url: 'https://site.example.test/?order=test-order' };
   const checkout = storeCheckout({ message: 'success', order_id: 'test-order', url: 'https://pay.example.test/submit.php', data: fields });

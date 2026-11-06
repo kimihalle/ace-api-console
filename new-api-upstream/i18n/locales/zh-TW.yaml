@@ -1,5 +1,9 @@
 # Chinese (Traditional) translations
 # 中文（繁體）翻譯檔案
+payment.checkout_title: "正在開啟付款"
+payment.checkout_hint: "若未自動開啟，請點擊下方按鈕繼續付款。"
+payment.checkout_continue: "繼續付款"
+payment.checkout_unavailable: "付款連結無效、已過期或已無法使用。請返回網站查看訂單，或重新建立訂單。"
 
 # Errors returned to AI clients
 common.database_error: "資料庫出錯，請聯繫管理員"

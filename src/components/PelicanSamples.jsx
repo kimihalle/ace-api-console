@@ -4,6 +4,7 @@ import { request } from '../lib/newapi.js';
 import { pelicanTargetKey, pelicanWorkKey, togglePelicanWorkComparison } from '../lib/pelican-preview.js';
 import { useLanguage } from '../lib/use-language.js';
 import Dialog from './Dialog.jsx';
+import ModelSelect from './ModelSelect.jsx';
 import SampleImage from './PelicanSamplePreview.jsx';
 import PelicanHistory from './PelicanHistory.jsx';
 import PelicanGalleryGroup from './PelicanGalleryGroup.jsx';
@@ -31,9 +32,8 @@ function PelicanComparison({ targets, onClose, onExpand }) {
 }
 
 export default function PelicanSamples() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [state, setState] = useState({ data: null, loading: true, error: false });
-  const [filter, setFilter] = useState('success');
   const [group, setGroup] = useState('');
   const [detail, setDetail] = useState(null);
   const [work, setWork] = useState(null);
@@ -60,13 +60,15 @@ export default function PelicanSamples() {
   }, [revision]);
   const targets = state.data?.targets || [];
   const groups = useMemo(() => [...new Set(targets.map((item) => item.group))], [targets]);
+  const groupOptions = useMemo(() => [{ value: '', label: t('全部分组') }, ...groups.map((name) => ({ value: name, label: name }))], [groups, t, locale]);
   const selectedGroup = groups.includes(group) ? group : '';
   const isPublished = (target) => target && targets.some((item) => pelicanTargetKey(item) === pelicanTargetKey(target));
+  const isPublicWork = (target) => isPublished(target) && target.latest?.status === 'success';
   const publicDetail = isPublished(detail) && detail;
-  const publicWork = isPublished(work) && work;
-  const comparisonTargets = selectedWorks.filter(isPublished);
+  const publicWork = isPublicWork(work) && work;
+  const comparisonTargets = selectedWorks.filter(isPublicWork);
   const selectedKeys = comparisonTargets.map(pelicanWorkKey);
-  const publicComparison = comparison?.filter(isPublished);
+  const publicComparison = comparison?.filter(isPublicWork);
   const openWork = (target) => { setComparison(null); setDetail(null); setWork(target); };
   const openHistory = (target) => { setWork(null); setComparison(null); setDetail(target); };
 
@@ -76,8 +78,8 @@ export default function PelicanSamples() {
     {state.data && !state.data.enabled && <div className="pelican-note">{t('定时实测已暂停，历史结果仍可查看。')}</div>}
     {state.error && <div role="alert" className="pelican-retry">{t('实测记录暂时无法加载')}<button onClick={() => setRevision((n) => n + 1)}><RefreshCw size={14} />{t('重试')}</button></div>}
     {state.loading ? <div className="mp-empty" role="status">{t('正在读取实测记录…')}</div> : !targets.length && !state.error ? <div className="mp-empty"><Bird size={30} /><strong>{t('管理员尚未配置公开实测模型')}</strong></div> : <>
-      <div className="pelican-browse-toolbar"><select aria-label={t('公开实测分组')} value={selectedGroup} onChange={(event) => setGroup(event.target.value)}><option value="">{t('全部分组')}</option>{groups.map((name) => <option key={name} value={name}>{name}</option>)}</select><div className="pelican-gallery-filters" role="group" aria-label={t('筛选实测状态')}>{[['all', '全部'], ['success', '成功'], ['failed', '失败']].map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{t(label)}</button>)}</div><span className="pelican-gallery-hint">{t('横向浏览，点击作品放大')}</span></div>
-      <div className="pelican-gallery">{groups.filter((name) => !selectedGroup || name === selectedGroup).map((name) => <PelicanGalleryGroup key={name} name={name} targets={targets.filter((target) => target.group === name)} filter={filter} revision={revision} selectedKeys={selectedKeys} onCompare={(target) => setSelectedWorks(togglePelicanWorkComparison(comparisonTargets, target))} onOpen={openWork} onHistory={openHistory} />)}</div>
+      <div className="pelican-browse-toolbar"><ModelSelect className="pelican-filter-select" ariaLabel={t('公开实测分组')} value={selectedGroup} onChange={setGroup} options={groupOptions} allowEmpty /><span className="pelican-gallery-hint">{t('横向浏览，点击作品放大')}</span></div>
+      <div className="pelican-gallery">{groups.filter((name) => !selectedGroup || name === selectedGroup).map((name) => <PelicanGalleryGroup key={name} name={name} targets={targets.filter((target) => target.group === name)} revision={revision} selectedKeys={selectedKeys} onCompare={(target) => setSelectedWorks(togglePelicanWorkComparison(comparisonTargets, target))} onOpen={openWork} onHistory={openHistory} />)}</div>
       {!!selectedKeys.length && <div className="pelican-compare-toolbar"><div className="pelican-compare-selection"><span>{t('已选 {count}/4', { count: selectedKeys.length })}</span>{comparisonTargets.map((target) => <button key={pelicanWorkKey(target)} title={`${target.group} / ${target.model}`} aria-label={t('移除对比 {group} / {model}', target)} onClick={() => setSelectedWorks((items) => items.filter((item) => pelicanWorkKey(item) !== pelicanWorkKey(target)))}><span>{target.group} · {target.model}</span><X size={12} /></button>)}</div><div className="pelican-compare-actions"><button className="mp-reset" onClick={() => setSelectedWorks([])}>{t('清空')}</button><button className="button primary small" disabled={selectedKeys.length < 2} onClick={() => setComparison(comparisonTargets.map((item) => ({ ...item, latest: { ...item.latest } }))) }><Columns2 size={15} />{t('并排对比')}</button></div></div>}
     </>}
     {state.data?.prompt && <details className="pelican-prompt"><summary>{t('统一测试提示词')} · {state.data.prompt_version}</summary><p>{state.data.prompt}</p><span>{t('历史记录保留 {days} 天', { days: state.data.retention_days })}</span></details>}

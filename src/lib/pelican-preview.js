@@ -11,6 +11,10 @@ export function mergePelicanHistory(previous, incoming) {
   return [...new Map([...previous, ...incoming].map((sample) => [sample.id, sample])).values()];
 }
 
+export function successfulPelicanRecords(records = []) {
+  return records.filter((sample) => sample.status === 'success');
+}
+
 export const pelicanTargetKey = (target) => JSON.stringify([target.group, target.model]);
 
 export const pelicanWorkKey = (target) => JSON.stringify([target.group, target.model, target.latest?.id]);
@@ -19,7 +23,7 @@ export function pelicanGalleryRecords(targets, histories) {
   return targets.flatMap((target) => {
     const history = histories[pelicanTargetKey(target)];
     const records = history?.loaded ? history.records : target.latest ? [target.latest] : [];
-    return mergePelicanHistory([], records).map((sample) => ({ group: target.group, model: target.model, latest: sample }));
+    return successfulPelicanRecords(mergePelicanHistory([], records)).map((sample) => ({ group: target.group, model: target.model, latest: sample }));
   }).sort((a, b) => b.latest.hour - a.latest.hour || b.latest.checked_at - a.latest.checked_at || b.latest.id - a.latest.id);
 }
 

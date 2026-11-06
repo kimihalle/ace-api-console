@@ -51,10 +51,6 @@
 .pelican-card footer>.pelican-card-actions { flex-direction:row; align-items:center; flex-wrap:wrap; gap:16px; }
 .pelican-card footer button,.pelican-retry button { display:inline-flex; align-items:center; gap:5px; border:0; padding:4px 0; background:none; color:var(--text-primary); font-size:12px; cursor:pointer; white-space:nowrap; }
 .pelican-card small { font-size:11px; color:var(--text-secondary); }
-.pelican-status { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--text-secondary); }
-.pelican-status.success { color:#147d64; }
-.pelican-status.failed { color:#b74639; }
-.pelican-status.running { color:#946c15; }
 .pelican-retry { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; color:#b74639; font-size:12px; }
 .pelican-compare-toolbar,.pelican-compare-selection,.pelican-compare-actions,.pelican-compare-heading { display:flex; align-items:center; gap:12px; }
 .pelican-compare-toolbar { justify-content:space-between; flex-wrap:wrap; gap:16px; }
@@ -92,20 +88,14 @@
 .pelican-history-sidebar-heading { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:6px 0 14px; font-size:12px; color:var(--text-primary); }
 .pelican-history-sidebar-heading>span { margin-left:auto; font-size:11px; color:var(--text-secondary); }
 .pelican-history-sidebar-heading>strong { font-weight:600; }
-.pelican-history-filters { display:flex; gap:4px; padding:3px; background:var(--bg-tertiary); border-radius:6px; margin-bottom:12px; }
-.pelican-history-filters button { flex:1; padding:6px 8px; font-size:12px; border:0; background:none; border-radius:4px; cursor:pointer; color:var(--text-secondary); }
-.pelican-history-filters button[aria-pressed=true] { background:#fff; box-shadow:0 1px 3px #182b3c12; color:var(--text-primary); font-weight:600; }
 .pelican-history { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; padding:1px 4px 4px 0; }
 .pelican-history-item { position:relative; display:grid; grid-template-columns:9px minmax(0,1fr) 14px; align-items:center; column-gap:9px; row-gap:7px; width:100%; padding:13px 10px; margin:0 0 5px; border:1px solid transparent; border-radius:6px; background:none; color:var(--text-primary); cursor:pointer; text-align:left; }
 .pelican-history-item:hover { background:var(--bg-tertiary); }
 .pelican-history-item.selected { background:#eff7f4; border-color:#bedbcc; }
 .pelican-history-dot { width:6px; height:6px; border-radius:50%; background:#87919b; }
 .pelican-history-item.success .pelican-history-dot { background:#147d64; }
-.pelican-history-item.failed .pelican-history-dot { background:#b74639; }
-.pelican-history-item.running .pelican-history-dot { background:#946c15; }
 .pelican-history-label { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; min-width:0; }
 .pelican-history-label time { font-size:12px; font-weight:600; white-space:nowrap; }
-.pelican-history-label .pelican-status { font-size:11px; }
 .pelican-history-duration { grid-column:2; font-size:11px; color:var(--text-secondary); }
 .pelican-history-selected { grid-column:3; grid-row:1/3; color:#147d64; }
 .pelican-load-earlier { display:block; width:100%; border:1px solid var(--border); padding:9px; border-radius:5px; background:#fff; color:var(--text-secondary); cursor:pointer; font-size:12px; }
@@ -179,10 +169,12 @@
 /* Group shelves keep multiple generations visible without shrinking the artwork. */
 .console-shell.console-topnav .main-content:has(.pelican-samples) { width:min(calc(100% - 64px),1680px); }
 .pelican-browse-toolbar { justify-content:flex-start; gap:14px; margin-bottom:30px; padding-bottom:18px; }
-.pelican-samples select { max-width:240px; min-width:140px; border:1px solid var(--border); border-radius:7px; padding:8px 28px 8px 11px; background:var(--bg-card); color:var(--text-primary); font:inherit; font-size:12px; }
-.pelican-gallery-filters { display:flex; gap:3px; padding:3px; border:1px solid var(--border); border-radius:7px; background:var(--bg-tertiary); }
-.pelican-gallery-filters button { border:0; padding:6px 14px; border-radius:4px; background:none; color:var(--text-secondary); font-size:12px; cursor:pointer; }
-.pelican-gallery-filters button[aria-pressed=true] { color:var(--text-primary); background:#fff; box-shadow:0 1px 3px #182b3c12; font-weight:600; }
+.pelican-filter-select { width:220px; max-width:240px; min-width:140px; color:var(--text-primary); font-size:12px; }
+.pelican-filter-select .model-select__trigger { min-height:36px; height:36px; padding:7px 10px; border-color:var(--border); border-radius:6px; background:var(--bg-card); }
+.pelican-filter-select .model-select__chevron { flex:none; width:7px; height:7px; margin-left:9px; }
+.pelican-filter-select .model-select__value>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pelican-filter-select .model-select__menu { top:calc(100% + 5px); border-radius:9px; }
+.pelican-filter-select .model-select__option { min-height:34px; overflow-wrap:anywhere; }
 .pelican-gallery-hint { margin-left:auto; font-size:12px; color:var(--text-muted); }
 .pelican-gallery { display:flex; flex-direction:column; gap:38px; }
 .pelican-gallery-group { min-width:0; }
@@ -209,8 +201,6 @@
 .pelican-work-card footer { padding:15px 17px 12px; }
 .pelican-work-card-title,.pelican-work-card-meta,.pelican-work-card-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .pelican-work-card-title strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 15px 'DM Mono',ui-monospace,monospace; }
-.pelican-work-card-title .pelican-status { flex:none; font-size:10px; }
-.pelican-status i { width:5px; height:5px; border-radius:50%; background:currentColor; }
 .pelican-work-card-meta { margin-top:9px; font-size:11px; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
 .pelican-work-card-meta>span,.pelican-work-meta>span { display:inline-flex; align-items:center; gap:5px; }
 .pelican-work-card-actions { margin-top:12px; padding-top:10px; border-top:1px solid #f0f2f4; }
@@ -237,7 +227,7 @@
 .pelican-work-stage .pelican-render-tools { flex:none; }
 .pelican-work-footer { display:flex; align-items:center; justify-content:space-between; flex:none; gap:12px; padding-top:16px; }
 .pelican-work-footer>span { color:var(--text-muted); font:10px ui-monospace,monospace; overflow-wrap:anywhere; }
-.pelican-gallery-strip:focus-visible,.pelican-samples select:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.pelican-gallery-strip:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 @media(min-width:1800px) { .pelican-work-card { flex-basis:400px; } }
 @media(max-width:760px) {
   .console-shell.console-topnav .main-content:has(.pelican-samples) { width:calc(100% - 32px); }
@@ -248,7 +238,7 @@
   .pelican-summary { font-size:11px; gap:8px; }
   .pelican-browse-toolbar { gap:10px; margin-bottom:24px; }
   .pelican-gallery-hint { display:none; }
-  .pelican-samples select { min-width:0; max-width:180px; }
+  .pelican-filter-select { min-width:0; max-width:180px; }
   .pelican-gallery { gap:30px; }
   .pelican-group-heading { flex-wrap:wrap; gap:12px; margin-bottom:14px; }
   .pelican-group-identity h3 { font-size:16px; }

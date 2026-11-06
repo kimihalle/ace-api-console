@@ -4,8 +4,9 @@ import { request } from '../lib/newapi.js';
 import { mergePelicanHistory, pelicanGalleryRecords, pelicanTargetKey, pelicanWorkKey } from '../lib/pelican-preview.js';
 import { useLanguage } from '../lib/use-language.js';
 import SampleImage from './PelicanSamplePreview.jsx';
+import ModelSelect from './ModelSelect.jsx';
 
-export default function PelicanGalleryGroup({ name, targets, filter, revision, selectedKeys, onCompare, onOpen, onHistory }) {
+export default function PelicanGalleryGroup({ name, targets, revision, selectedKeys, onCompare, onOpen, onHistory }) {
   const { t, locale } = useLanguage();
   const host = useRef(null);
   const strip = useRef(null);
@@ -18,6 +19,8 @@ export default function PelicanGalleryGroup({ name, targets, filter, revision, s
   const [paging, setPaging] = useState(false);
   const [scroll, setScroll] = useState({ left: false, right: false });
   const signature = JSON.stringify(targets);
+  const modelNames = JSON.stringify([...new Set(targets.map((target) => target.model))]);
+  const modelOptions = useMemo(() => [{ value: '', label: t('全部模型') }, ...JSON.parse(modelNames).map((name) => ({ value: name, label: name }))], [modelNames, t, locale]);
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) { setVisible(true); observer.disconnect(); }
@@ -49,11 +52,11 @@ export default function PelicanGalleryGroup({ name, targets, filter, revision, s
     for (let worker = 0; worker < Math.min(items.length, 3); worker++) void load();
     return () => { controller.abort(); pageRequest.current?.abort(); };
   }, [signature, revision, retry, visible]);
-  useEffect(() => { setLimit(12); strip.current?.scrollTo({ left: 0 }); }, [model, filter]);
+  useEffect(() => { setLimit(12); strip.current?.scrollTo({ left: 0 }); }, [model]);
 
   const selectedModel = targets.some((target) => target.model === model) ? model : '';
   const works = useMemo(() => pelicanGalleryRecords(targets, histories), [targets, histories]);
-  const records = works.filter((work) => (!selectedModel || work.model === selectedModel) && (filter === 'all' || work.latest.status === filter));
+  const records = works.filter((work) => !selectedModel || work.model === selectedModel);
   const displayed = records.slice(0, limit);
   const loading = visible && targets.some((target) => !histories[pelicanTargetKey(target)]);
   const failed = targets.some((target) => histories[pelicanTargetKey(target)]?.error);
@@ -95,7 +98,7 @@ export default function PelicanGalleryGroup({ name, targets, filter, revision, s
   return <section ref={host} className="pelican-gallery-group" aria-label={name} aria-busy={loading}>
     <header className="pelican-group-heading">
       <div className="pelican-group-identity"><div className="pelican-group-icon"><Bird size={23} /></div><div><h3>{name}</h3><p>{t('{count} 个模型', { count: targets.length })}{latest > 0 && <><span>·</span>{t('最近检测 {time}', { time: shortTime(latest) })}</>}</p></div></div>
-      <div className="pelican-group-controls"><select aria-label={t('筛选 {group} 的模型', { group: name })} value={selectedModel} onChange={(event) => setModel(event.target.value)}><option value="">{t('全部模型')}</option>{targets.map((target) => <option value={target.model} key={target.model}>{target.model}</option>)}</select><div className="pelican-row-navigation"><button className="icon-button" aria-label={t('向左浏览 {group}', { group: name })} disabled={!scroll.left} onClick={() => move(-1)}><ChevronLeft size={18} /></button><button className="icon-button" aria-label={t('向右浏览 {group}', { group: name })} disabled={!scroll.right} onClick={() => move(1)}><ChevronRight size={18} /></button></div></div>
+      <div className="pelican-group-controls"><ModelSelect className="pelican-filter-select" ariaLabel={t('筛选 {group} 的模型', { group: name })} value={selectedModel} onChange={setModel} options={modelOptions} allowEmpty /><div className="pelican-row-navigation"><button className="icon-button" aria-label={t('向左浏览 {group}', { group: name })} disabled={!scroll.left} onClick={() => move(-1)}><ChevronLeft size={18} /></button><button className="icon-button" aria-label={t('向右浏览 {group}', { group: name })} disabled={!scroll.right} onClick={() => move(1)}><ChevronRight size={18} /></button></div></div>
     </header>
     {failed && <div className="pelican-group-error" role="alert">{t('部分历史记录加载失败，已显示可用结果。')}<button onClick={() => setRetry((value) => value + 1)}><RefreshCw size={13} />{t('重试')}</button></div>}
     <div ref={strip} className="pelican-gallery-strip" role="region" aria-label={t('{group} 的作品，可横向滚动', { group: name })} tabIndex={0}>
@@ -103,14 +106,14 @@ export default function PelicanGalleryGroup({ name, targets, filter, revision, s
         const sample = work.latest;
         const key = pelicanWorkKey(work);
         const checked = selectedKeys.includes(key);
-        const disabled = sample.status !== 'success' || (!checked && selectedKeys.length >= 4);
+        const disabled = !checked && selectedKeys.length >= 4;
         return <article className={`pelican-work-card${checked ? ' is-comparing' : ''}`} key={key} data-sample-id={sample.id}>
           <div className="pelican-work-thumbnail"><SampleImage compact sample={sample} model={work.model} /><button className="pelican-open-work" aria-label={t('查看 {model} 在 {time} 的作品', { model: work.model, time: shortTime(sample.checked_at) })} onClick={() => onOpen(work)}><span><Maximize2 size={15} />{t('放大查看')}</span></button></div>
-          <footer><div className="pelican-work-card-title"><strong title={work.model}>{work.model}</strong><span className={`pelican-status ${sample.status}`}><i />{t(sample.status === 'success' ? '成功' : sample.status === 'running' ? '正在生成…' : '失败')}</span></div><div className="pelican-work-card-meta"><time dateTime={new Date(sample.checked_at * 1000).toISOString()}>{shortTime(sample.checked_at)}</time><span><Clock3 size={12} />{t('耗时 {seconds} 秒', { seconds: (sample.latency_ms / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) })}</span></div><div className="pelican-work-card-actions"><label className={`pelican-compare-check${disabled ? ' disabled' : ''}`}><input type="checkbox" checked={checked} disabled={disabled} aria-label={t('加入对比 {group} / {model}', work)} onChange={() => onCompare(work)} />{t('对比')}</label><button onClick={() => onHistory(work)}><History size={13} />{t('模型历史')}</button></div></footer>
+          <footer><div className="pelican-work-card-title"><strong title={work.model}>{work.model}</strong></div><div className="pelican-work-card-meta"><time dateTime={new Date(sample.checked_at * 1000).toISOString()}>{shortTime(sample.checked_at)}</time><span><Clock3 size={12} />{t('耗时 {seconds} 秒', { seconds: (sample.latency_ms / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) })}</span></div><div className="pelican-work-card-actions"><label className={`pelican-compare-check${disabled ? ' disabled' : ''}`}><input type="checkbox" checked={checked} disabled={disabled} aria-label={t('加入对比 {group} / {model}', work)} onChange={() => onCompare(work)} />{t('对比')}</label><button onClick={() => onHistory(work)}><History size={13} />{t('模型历史')}</button></div></footer>
         </article>;
       })}
       {hasMore && <div className="pelican-gallery-more"><button className="button outline small" disabled={loading || paging} onClick={loadMore}>{paging ? t('正在读取实测记录…') : t('加载更多作品')}<ChevronRight size={15} /></button><span>{t('已加载 {count} 条', { count: works.length })}</span></div>}
-      {!displayed.length && <div className="pelican-gallery-empty" role="status"><Bird size={28} /><p>{t(loading || !visible ? '正在读取实测记录…' : works.length ? '当前筛选下暂无记录' : '等待首次实测')}</p></div>}
+      {!displayed.length && <div className="pelican-gallery-empty" role="status"><Bird size={28} /><p>{t(loading || !visible ? '正在读取实测记录…' : works.length ? '当前筛选下暂无记录' : '暂无可展示的作品')}</p></div>}
     </div>
   </section>;
 }

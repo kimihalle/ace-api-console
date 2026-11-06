@@ -198,14 +198,13 @@ func GetPelicanCatalog(c *gin.Context) {
 			break
 		}
 		for _, name := range target.Models {
-			rows, err := model.QueryPelicanSamples(target.Group, name, 0, 1, config.RetentionDays)
+			rows, err := queryPublicPelicanSamples(target.Group, name, 0, 1, config.RetentionDays)
 			if err != nil {
 				common.ApiError(c, err)
 				return
 			}
 			var latest *model.PelicanSample
 			if len(rows) > 0 {
-				reconcilePelicanSample(&rows[0])
 				latest = &rows[0]
 			}
 			targets = append(targets, gin.H{"group": target.Group, "model": name, "latest": latest})
@@ -234,32 +233,56 @@ func GetPelicanHistory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid history cursor"})
 		return
 	}
-	rows, err := model.QueryPelicanSamples(group, name, before, 24, config.RetentionDays)
+	rows, err := queryPublicPelicanSamples(group, name, before, 25, config.RetentionDays)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	var next int64
-	if len(rows) == 24 {
+	if len(rows) > 24 {
+		rows = rows[:24]
 		next = rows[len(rows)-1].Hour
-	}
-	for i := range rows {
-		reconcilePelicanSample(&rows[i])
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"records": rows, "next_before": next}})
 }
 
+// Legacy successes can fail validation. Continue to older works so a broken
+// sample never replaces the last valid preview or leaves a hole in a full page.
+func queryPublicPelicanSamples(group, name string, before int64, limit int, retentionDays int) ([]model.PelicanSample, error) {
+	result := []model.PelicanSample{}
+	for len(result) < limit {
+		batchSize := min(limit-len(result), 48)
+		rows, err := model.QuerySuccessfulPelicanSamples(group, name, before, batchSize, retentionDays)
+		if err != nil {
+			return nil, err
+		}
+		for i := range rows {
+			if err := reconcilePelicanSample(&rows[i]); err != nil {
+				return nil, err
+			}
+			if rows[i].Status == "success" {
+				result = append(result, rows[i])
+			}
+		}
+		if len(rows) < batchSize {
+			break
+		}
+		before = rows[len(rows)-1].Hour
+	}
+	return result, nil
+}
+
 // Older deployments could persist a truncated SVG as success. Reconcile those
 // rows when they are read so public history never advertises an unrenderable image.
-func reconcilePelicanSample(sample *model.PelicanSample) {
+func reconcilePelicanSample(sample *model.PelicanSample) error {
 	if sample == nil || sample.Status != "success" {
-		return
+		return nil
 	}
 	var stored struct {
 		SVG string
 	}
 	if err := model.DB.Model(&model.PelicanSample{}).Select("svg").Where("id = ?", sample.ID).First(&stored).Error; err != nil {
-		return
+		return err
 	}
 	var err error
 	if strings.HasPrefix(sample.PromptVersion, "pelican-html-") {
@@ -268,14 +291,14 @@ func reconcilePelicanSample(sample *model.PelicanSample) {
 		_, err = service.ExtractPelicanSVG(stored.SVG)
 	}
 	if err == nil {
-		return
+		return nil
 	}
 	sample.Status = "failed"
 	sample.ErrorCode = "invalid_svg"
 	if strings.HasPrefix(sample.PromptVersion, "pelican-html-") {
 		sample.ErrorCode = "invalid_html"
 	}
-	_ = model.DB.Model(&model.PelicanSample{}).Where("id = ? AND status = ?", sample.ID, "success").Updates(map[string]any{"status": "failed", "error_code": sample.ErrorCode}).Error
+	return model.DB.Model(&model.PelicanSample{}).Where("id = ? AND status = ?", sample.ID, "success").Updates(map[string]any{"status": "failed", "error_code": sample.ErrorCode}).Error
 }
 
 func GetPelicanDocument(c *gin.Context)      { getPelicanDocument(c, false) }

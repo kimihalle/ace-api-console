@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowRight, CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, Gift, RefreshCw, WalletCards } from 'lucide-react';
+import { CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, Gift, RefreshCw, WalletCards } from 'lucide-react';
 import { newApi } from '../lib/newapi.js';
 import { useLanguage } from '../lib/use-language.js';
 import { formatQuotaDisplay } from '../lib/usage-format.js';
@@ -50,7 +50,7 @@ function PurchaseConfirm({ product, user, status, deliveryModes, onClose, onCrea
       <div className="store-checkout-total"><span>{t('应付金额')}</span><strong><PaymentPrice payment={payment} locale={locale} /></strong></div>
       {payment?.estimated && <p className="store-help">{t('实际支付金额及优惠以网关收银台为准。')}</p>}
       {error && <p className="form-error" role="alert">{t(error)}</p>}
-      <div className="modal-actions"><button type="button" className="button outline" disabled={busy} onClick={onClose}>{t('取消')}</button><button className="button primary" type="submit" disabled={busy || !payment || !deliveryModes.includes(delivery)}>{busy ? t('正在创建订单…') : t('立即支付')}<ArrowRight size={16} /></button></div>
+      <div className="modal-actions"><button type="button" className="button outline" disabled={busy} onClick={onClose}>{t('取消')}</button><button className="button primary" type="submit" disabled={busy || !payment || !deliveryModes.includes(delivery)}>{busy ? t('正在创建订单…') : t('立即支付')}</button></div>
     </form>
   </Dialog>;
 }
@@ -148,7 +148,8 @@ export default function PurchaseStore({ user, status, onBalanceChange, onToast }
     {state.loading && !state.data ? <div className="store-empty" role="status">{t('正在加载商品…')}</div> : <div className="store-products">{products.map((product, index) => {
       const payment = product.payments[0];
       const name = product.name || t('{amount} 额度包', { amount: formatQuotaDisplay(payment?.quota, status) });
-      return <article className="store-product" key={product.id}><div className="store-product-art"><CreditTicket quota={payment?.quota} status={status} tone={index} /></div><div className="store-product-info"><span className="store-product-type">{t('API 调用额度')}</span><h3>{name}</h3><p>{t(deliveryDescription)}</p><div className="store-product-price"><strong><PaymentPrice payment={payment} locale={locale} /></strong><small>{t('/ 份')}</small></div><button className="button primary" disabled={!payment || state.loading || !deliveryModes.length} onClick={() => setSelected(product)}>{t('立即购买')}<ArrowRight size={18} /></button></div></article>;
+      // Purchase actions stay text-only; do not add decorative arrow icons.
+      return <article className="store-product" key={product.id}><div className="store-product-art"><CreditTicket quota={payment?.quota} status={status} tone={index} /></div><div className="store-product-info"><span className="store-product-type">{t('API 调用额度')}</span><h3>{name}</h3><p>{t(deliveryDescription)}</p><div className="store-product-price"><strong><PaymentPrice payment={payment} locale={locale} /></strong><small>{t('/ 份')}</small></div><button className="button primary" disabled={!payment || state.loading || !deliveryModes.length} onClick={() => setSelected(product)}>{t('立即购买')}</button></div></article>;
     })}</div>}
     {!state.loading && !state.error && !products.length && <div className="store-empty"><CreditCard size={30} /><strong>{t('暂未开放在线购买')}</strong><p>{t(external ? '可通过上方外部充值入口购买，或使用已有兑换码。' : '管理员配置支付网关和充值档位后，商品会显示在这里。')}</p></div>}
     {selected && <PurchaseConfirm product={selected} user={user} status={status} deliveryModes={deliveryModes} onClose={() => setSelected(null)} onCreated={(checkout) => { setSelected(null); setReceipt(checkout); }} />}

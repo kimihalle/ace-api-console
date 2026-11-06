@@ -1,4 +1,8 @@
 # English translations
+payment.checkout_title: "Opening payment"
+payment.checkout_hint: "If payment does not open automatically, tap the button below."
+payment.checkout_continue: "Continue to payment"
+payment.checkout_unavailable: "This payment link is invalid, expired or no longer available. Return to the website to check your order or create a new one."
 
 # Errors returned to AI clients
 common.database_error: "Database error, please contact the administrator"
