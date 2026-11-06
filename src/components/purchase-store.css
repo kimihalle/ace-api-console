@@ -107,7 +107,7 @@
 .store-orders>footer { display:flex; align-items:center; justify-content:flex-end; gap:12px; padding:20px 0; color:var(--store-muted); font-size:12px; }
 .store-orders>footer>span:first-child { margin-right:auto; }
 .purchase-store button:focus-visible,.store-dialog button:focus-visible,.store-dialog input:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
-@media(min-width:1600px) { .console-shell.console-topnav .main-content:has(.purchase-store) { width:min(calc(100% - 64px),1680px); }.store-products { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(min-width:1600px) { .console-shell.console-topnav .main-content:has(.purchase-workspace) { width:min(calc(100% - 64px),1680px); }.store-products { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:1050px) { .store-product { grid-template-columns:140px minmax(0,1fr); }.store-product-art { padding:24px 12px; }.store-ticket { width:110px; min-height:202px; }.store-product-info { padding:22px 16px; }.store-product-info h3 { font-size:17px; }.store-product-price>strong { font-size:22px; } }
 @media(max-width:760px) {
   .store-products { grid-template-columns:minmax(0,1fr); gap:16px; }

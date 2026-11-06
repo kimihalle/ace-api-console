@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, Bell, Check, CheckCircle2, CircleHelp, Clock3, Copy, CreditCard, Eye, EyeOff,
   Download, FileText, Gauge, Gift, KeyRound, LayoutDashboard, LockKeyhole, Megaphone,
-  LogOut, Menu, Plus, Receipt, Search, Settings2, ShieldCheck, Sparkles, Ticket, Trash2, Users,
+  LogOut, Menu, Plus, Search, Settings2, ShieldCheck, Sparkles, Ticket, Trash2, Users,
   WalletCards, X, Zap,
 } from 'lucide-react';
 import { apiBaseLabel, clearAccessToken, login, logout, newApi, newApiConsoleUrl, register, restoreSession } from './lib/newapi.js';
@@ -18,7 +18,7 @@ import ImageStudio from './components/ImageStudio.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
 import { formatQuotaDisplay, formatUsdQuota, formatLoggedAmount, formatNumber, logTiming, readLogOther, logUsage, usageLogQuery, usageColumns, usageTableColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
 import { availableMarketGroups, configuredGroupRatio, marketGroupVendors } from './lib/model-marketplace.js';
-import { consolePage, consolePath, consoleReturnPath, isConsolePath } from './lib/routes.js';
+import { consolePage, consolePath, consoleReturnPath, isConsolePath, isBillingPath } from './lib/routes.js';
 import { useLanguage } from './lib/use-language.js';
 import LanguageSwitcher from './components/LanguageSwitcher.jsx';
 import AnnouncementDialog, { AnnouncementContent } from './components/Announcements.jsx';
@@ -32,6 +32,7 @@ import CCSwitchDialog from './components/CCSwitchDialog.jsx';
 import UsageTrend from './components/UsageTrend.jsx';
 import UsageFilters from './components/UsageFilters.jsx';
 import PurchaseStore from './components/PurchaseStore.jsx';
+import PurchaseWorkspace from './components/PurchaseWorkspace.jsx';
 import { usageFilterQuery } from './lib/usage-filters.js';
 import { applySiteBranding, cacheSiteBranding, readCachedBranding } from './lib/site-branding.js';
 import VendorIcon from './components/VendorIcon.jsx';
@@ -40,7 +41,6 @@ const navItems = [
   { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
   { id: 'redeem', label: '兑换订阅', icon: Ticket },
   { id: 'usage', label: '使用统计', icon: Activity },
-  { id: 'bills', label: '账单明细', icon: Receipt },
   { id: 'keys', label: 'API 密钥', icon: KeyRound },
   { id: 'models', label: '模型广场', icon: Sparkles },
   { id: 'images', label: '图片生成', icon: Sparkles },
@@ -122,6 +122,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(isConsolePath(window.location.pathname));
   const inConsole = isConsolePath(route);
   const page = consolePage(route);
+  const billingActive = isBillingPath(route);
   const [keys, setKeys] = useState([]);
   const [keyPage, setKeyPage] = useState(1);
   const [keyTotal, setKeyTotal] = useState(0);
@@ -204,6 +205,13 @@ function App() {
     window.history.pushState({}, '', nextPath);
     setRoute(pathname);
   };
+
+  useEffect(() => {
+    if (!/^\/console\/bills\/?$/.test(route)) return;
+    const path = consolePath('bills');
+    window.history.replaceState(window.history.state, '', `${path}${window.location.search}${window.location.hash}`);
+    setRoute(path);
+  }, [route]);
 
   useEffect(() => {
     let active = true;
@@ -449,7 +457,7 @@ function App() {
             setUsageRows(asList(logs));
             setUsageTotal(Number(logs?.total || 0));
           }
-        } else if (page === 'bills') {
+        } else if (billingActive) {
           setBillLoading(true);
           setBillRows([]);
           setBillTotal(0);
@@ -464,13 +472,13 @@ function App() {
       finally {
         if (active && page === 'usage') setUsageLoading(false);
         if (active && page === 'keys') setKeyLoading(false);
-        if (active && page === 'bills') setBillLoading(false);
+        if (active && billingActive) setBillLoading(false);
         if (active && page === 'dashboard') setReferralLoading(false);
       }
     };
     load();
     return () => { active = false; };
-  }, [route, page, authUser?.id, usageRange, usageFilters, usagePage, keySearch, keyPage, billPage, keyRevision, referralRevision]);
+  }, [route, page, billingActive, authUser?.id, usageRange, usageFilters, usagePage, keySearch, keyPage, billPage, keyRevision, referralRevision]);
 
   const signOut = async () => {
     try { await logout(); } catch { clearAccessToken(); }
@@ -765,7 +773,7 @@ function App() {
           <div className="workspace-header-actions">
             <LanguageSwitcher />
             <button className="workspace-menu-toggle" onClick={() => { setProfileOpen(false); setWorkspaceMenuOpen((open) => !open); }} aria-label={workspaceMenuOpen ? t("关闭导航菜单") : t("打开导航菜单")} aria-controls="workspace-navigation" aria-expanded={workspaceMenuOpen}>{workspaceMenuOpen ? <X size={20} /> : <Menu size={20} />}</button>
-            <div className="profile-menu-wrap"><button className="profile-button" onClick={() => { setWorkspaceMenuOpen(false); setProfileOpen((open) => !open); }} aria-label={t("账户菜单")} aria-expanded={profileOpen}><AccountAvatar user={authUser} name={username} /><span className="profile-name">{username}</span></button>{profileOpen && <div className="profile-menu"><button onClick={() => { setProfileOpen(false); go('/'); }}>{t("返回首页")}</button>{isAdmin && <button onClick={() => { setProfileOpen(false); go('/admin'); }}>{t("管理工作台")}</button>}<button onClick={() => { setProfileOpen(false); notify(t("请联系管理员获取帮助")); }}><CircleHelp size={14} />{t("帮助与支持")}</button><button className="profile-menu-danger" onClick={signOut}><LogOut size={14} />{t("退出登录")}</button></div>}</div>
+            <div className="profile-menu-wrap"><button className="profile-button" onClick={() => { setWorkspaceMenuOpen(false); setProfileOpen((open) => !open); }} aria-label={t("账户菜单")} aria-expanded={profileOpen}><AccountAvatar user={authUser} name={username} /><span className="profile-name">{username}</span></button>{profileOpen && <div className="profile-menu"><button onClick={() => { setProfileOpen(false); go('/'); }}>{t("返回首页")}</button>{isAdmin && <button onClick={() => { setProfileOpen(false); go('/admin'); }}>{t("管理工作台")}</button>}<button className="profile-menu-danger" onClick={signOut}><LogOut size={14} />{t("退出登录")}</button></div>}</div>
           </div>
         </div>
       </header>
@@ -781,11 +789,12 @@ function App() {
         {page === 'redeem' && <Redeem value={redeem} enabled={topUpInfo?.enable_redemption !== false} onChange={setRedeem} onSubmit={redeemCode} />}
         {page === 'usage' && <Usage data={userSummary?.usage} status={siteStatus} rows={usageRows} range={usageRange} onRange={(value) => { setUsageRange(value); setUsagePage(1); }} filters={usageFilters} models={userModels} groups={groups} onApplyFilters={(filters, range) => { setUsageFilters(filters); setUsageRange(range); setUsagePage(1); }} page={usagePage} total={usageTotal} loading={usageLoading} onPage={setUsagePage} onExport={exportUsage} exportBusy={exportBusy} />}
         {page === 'keys' && <Keys keys={keys} search={keySearch} onSearch={(value) => { setKeySearch(value); setKeyPage(1); }} page={keyPage} total={keyTotal} loading={keyLoading} onPage={setKeyPage} onConfigure={openKeyConfig} onReveal={revealKey} onCopy={copyKey} onToggle={toggleKey} onDelete={removeKey} onToast={notify} catalog={userModels} status={siteStatus} catalogLoading={catalogLoading} />}
-        {page === 'bills' && <Bills rows={billRows} page={billPage} total={billTotal} loading={billLoading} onPage={setBillPage} />}
         {page === 'models' && <ModelMarketplace models={userModels} groups={groups} catalog={pricingCatalog} quota={authUser?.quota} userGroup={authUser?.group} status={siteStatus} loading={catalogLoading} error={catalogError} onToast={notify} />}
-        {page === 'images' && imageStudioMenuEnabled && <ImageStudio models={userModels} userId={authUser.id} onToast={notify} />}
+        {page === 'images' && imageStudioMenuEnabled && <ImageStudio models={userModels} onToast={notify} />}
         {page === 'pelican' && <PelicanSamples />}
-        {page === 'plans' && <PurchaseStore user={authUser} status={siteStatus} onToast={notify} onBalanceChange={() => { newApi.currentUser().then(setAuthUser).catch(() => {}); }} />}
+        {page === 'plans' && <PurchaseWorkspace activeTab={billingActive ? 'bills' : 'purchase'} onTabChange={(tab) => { const path = consolePath(tab === 'bills' ? 'bills' : 'plans'); if (path !== route) go(path); }}
+          purchase={<PurchaseStore user={authUser} status={siteStatus} onToast={notify} onBalanceChange={() => { newApi.currentUser().then(setAuthUser).catch(() => {}); }} />}
+          bills={<Bills rows={billRows} page={billPage} total={billTotal} loading={billLoading} onPage={setBillPage} />} />}
       </main>
       {modal === 'transfer-referral' ? <Dialog title={t('转入余额')} className="referral-transfer-dialog" onClose={() => { if (!referralBusy) setModal(''); }}><p className="transfer-description">{t('将全部邀请奖励转入账户余额，用于模型调用。')}</p><div className="transfer-amount">{formatQuotaDisplay(authUser?.aff_quota, siteStatus)}</div>{referralTransferError && <p className="form-error" role="alert">{t(referralTransferError)}</p>}<div className="modal-actions"><button className="button outline" disabled={referralBusy} onClick={() => setModal('')}>{t('取消')}</button><button className="button primary" disabled={referralBusy} onClick={transferReferral}>{t(referralBusy ? '正在转入…' : '确认转入')}</button></div></Dialog>
         : modal && <KeyDialog type={modal} name={keyName} setName={setKeyName} keyLimit={keyLimit} setKeyLimit={setKeyLimit} keyExpiry={keyExpiry} setKeyExpiry={setKeyExpiry} keySaving={keySaving} createdKey={createdKey} error={keyError} onClose={() => { if (keySaving) return; setModal(''); setCreatedKey(''); setKeyError(''); setEditingKey(null); }} onCreate={createKey} onUpdate={updateKey} onToast={notify} keyGroup={keyGroup} onKeyGroup={setKeyGroup} keyGroupOptions={keyGroupOptions} />}
@@ -799,12 +808,11 @@ function pageSubtitle(page) {
   return ({
     redeem: t("使用兑换码激活你的订阅服务"),
     usage: t("查看模型调用和消费明细"),
-    bills: t("兑换、充值与订阅明细"),
     keys: t("创建和管理你的 API 访问密钥"),
     models: t("浏览可用模型、价格和接入方式"),
     images: t("用已有密钥生成图片"),
     pelican: t("查看各分组模型的动态卡片、源代码和每小时记录"),
-    plans: t("选择适合你的使用额度"),
+    plans: t('购买额度，查看充值与订阅账单'),
   })[page] ?? '';
 }
 

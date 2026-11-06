@@ -1,5 +1,7 @@
 // Only interface copy belongs here. Site names, groups, vendors, models and user input stay unchanged.
 export const messages = {
+  '购买与账单': 'Purchases and billing', '购买额度，查看充值与订阅账单': 'Buy credits and view your top-up and subscription history',
+  '调用使用所选密钥扣费。请及时下载生成的图片。': 'Usage is charged to the selected key. Download generated images before leaving the page.',
   '生成记录': 'Generation history', '生成详情': 'Generation details', '生成日期': 'Generated at', '提示词': 'Prompt',
   '提示词已复制': 'Prompt copied', '复制提示词': 'Copy prompt', '下载图片': 'Download image', '查看详情': 'View details',
   '查看图片': 'View image', '放大图片': 'Zoom in', '适应窗口': 'Fit to window', '模型默认': 'Model default',

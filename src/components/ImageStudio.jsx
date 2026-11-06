@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History, ImagePlus, LoaderCircle, Scan, Sparkles, WandSparkles, X } from 'lucide-react';
+import { ImagePlus, LoaderCircle, Scan, Sparkles, WandSparkles, X } from 'lucide-react';
 import ModelSelect from './ModelSelect.jsx';
-import ImageStudioHistoryDialog from './ImageStudioHistoryDialog.jsx';
 import ImageStudioImageActions from './ImageStudioImageActions.jsx';
 import ImageStudioPreviewDialog from './ImageStudioPreviewDialog.jsx';
 import { generateImage, newApi } from '../lib/newapi.js';
 import { fullTokenKey } from '../lib/tokens.js';
-import { listImageStudioRecords, saveImageStudioRecord } from '../lib/image-studio-records.js';
 import { imageModels, imageRequest, imageSources } from '../lib/image-studio.js';
 import { ccSwitchModels } from '../lib/cc-switch.js';
 import { t } from '../lib/i18n.js';
@@ -24,7 +22,7 @@ const sizes = ['256x256', '512x512', '768x768', '1024x1024', '2048x2048', '1536x
   return { value, label: `${width} × ${height}`, icon: <SizeIcon width={width} height={height} /> };
 });
 
-export default function ImageStudio({ models = [], userId, onToast }) {
+export default function ImageStudio({ models = [], onToast }) {
   const [tokens, setTokens] = useState([]);
   const [tokensLoading, setTokensLoading] = useState(true);
   const [tokenId, setTokenId] = useState('');
@@ -35,17 +33,7 @@ export default function ImageStudio({ models = [], userId, onToast }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [works, setWorks] = useState([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyCount, setHistoryCount] = useState(0);
   const [preview, setPreview] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    listImageStudioRecords(userId)
-      .then((records) => { if (active) setHistoryCount(records.reduce((sum, record) => sum + record.sources.length, 0)); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [userId]);
 
   useEffect(() => {
     let active = true;
@@ -103,13 +91,6 @@ export default function ImageStudio({ models = [], userId, onToast }) {
       if (!sources.length) throw new Error('上游未返回可显示的图片');
       const record = { id: crypto.randomUUID(), model, prompt: payload.prompt, createdAt: Date.now(), sources };
       setWorks((previous) => [record, ...previous].slice(0, 12));
-      try {
-        await saveImageStudioRecord(userId, record);
-        const savedRecords = await listImageStudioRecords(userId);
-        setHistoryCount(savedRecords.reduce((sum, item) => sum + item.sources.length, 0));
-      } catch (cause) {
-        setError(t('图片已生成，但记录保存失败：{reason}', { reason: cause.message || '请检查浏览器存储权限' }));
-      }
     } catch (cause) {
       setError(cause.message || '生成失败，请稍后重试');
     } finally {
@@ -135,15 +116,14 @@ export default function ImageStudio({ models = [], userId, onToast }) {
           {!tokensLoading && tokens.length === 0 && <div className="image-studio-error" role="status">{t('暂无启用中的 API 密钥，请先到 API 密钥页面创建。')}</div>}
           {!tokensLoading && tokens.length > 0 && availableModels.length === 0 && <div className="image-studio-error" role="status">{t('此密钥分组暂无支持图片生成的模型。')}</div>}
           <button className="image-studio-submit" type="submit" disabled={busy || !tokens.length || !availableModels.length}>{busy ? <LoaderCircle size={17} className="image-studio-spin" /> : <Sparkles size={17} />}{busy ? t('正在生成图片…') : t('开始生成')}</button>
-          <p className="image-studio-privacy">{t('调用使用所选密钥扣费。图片记录按账户保存在当前浏览器中。')}</p>
+          <p className="image-studio-privacy">{t('调用使用所选密钥扣费。请及时下载生成的图片。')}</p>
         </form>
       </section>
       <section className="image-studio-results" aria-label={t('生成结果')}>
-        <div className="image-studio-results-head"><div><h2>{t('生成结果')}</h2><p>{works.length ? t('当前会话的作品') : t('你的作品会显示在这里')}</p></div><div className="image-studio-results-actions"><button type="button" className="image-studio-history-button" onClick={() => setHistoryOpen(true)}><History size={16} />{t('生成记录')}<span>{historyCount}</span></button>{works.length > 0 && <button className="image-studio-clear" type="button" onClick={() => setWorks([])} title={t('清空当前作品')} aria-label={t('清空当前作品')}><X size={17} /></button>}</div></div>
+        <div className="image-studio-results-head"><div><h2>{t('生成结果')}</h2><p>{works.length ? t('当前会话的作品') : t('你的作品会显示在这里')}</p></div>{works.length > 0 && <button className="image-studio-clear" type="button" onClick={() => setWorks([])} title={t('清空当前作品')} aria-label={t('清空当前作品')}><X size={17} /></button>}</div>
         {works.length ? <div className="image-studio-works">{works.map((work) => <article key={work.id} className="image-studio-work"><div className="image-studio-work-head"><strong>{work.model}</strong><time dateTime={new Date(work.createdAt).toISOString()}>{new Date(work.createdAt).toLocaleTimeString()}</time></div><div className="image-studio-art-grid">{work.sources.map((source, index) => <div className="image-studio-art" key={`${work.id}-${index}`}><img src={source} alt={`${work.prompt.slice(0, 80)} (${index + 1})`} /><ImageStudioImageActions source={source} filename={`image-${work.createdAt}-${index + 1}`} onView={() => setPreview({ record: work, source, index })} onToast={onToast} /></div>)}</div><p>{work.prompt}</p></article>)}</div> : <div className="image-studio-empty"><span><ImagePlus size={34} strokeWidth={1.5} /></span><strong>{t('还没有生成的图片')}</strong><p>{t('填写左侧设置，开始你的第一次创作')}</p></div>}
       </section>
     </div>
-    {historyOpen && <ImageStudioHistoryDialog userId={userId} onClose={() => setHistoryOpen(false)} onToast={onToast} />}
     {preview && <ImageStudioPreviewDialog {...preview} onClose={() => setPreview(null)} onToast={onToast} />}
   </div>;
 }
