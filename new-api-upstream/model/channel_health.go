@@ -36,7 +36,10 @@ type ChannelHealthResult struct {
 	WindowEnd     int64                 `json:"window_end"`
 	BucketSeconds int64                 `json:"bucket_seconds"`
 	LastCheckedAt int64                 `json:"last_checked_at"`
+	SampleLimit   int                   `json:"sample_limit,omitempty"`
 }
+
+const MaxChannelHealthSamples = 256
 
 func RecordChannelHealthCheck(channel *Channel, checkedAt int64, success bool, latencyMs int64) error {
 	if channel == nil || channel.Id <= 0 || checkedAt <= 0 {
@@ -106,5 +109,44 @@ func QueryChannelHealth(group string, hours int, now time.Time, configuredInterv
 		result.SuccessSeries = append(result.SuccessSeries, ChannelHealthPoint{Ts: ts, SuccessRate: float64(count.passed) * 100 / float64(count.total)})
 	}
 	slices.SortFunc(result.SuccessSeries, func(a, b ChannelHealthPoint) int { return cmp.Compare(a.Ts, b.Ts) })
+	return result, nil
+}
+
+// Keep the latest recorded intervals instead of an eight-hour window. At a
+// thirty-minute cadence that window can never grow beyond sixteen bars.
+// Aggregate before limiting so multiple channels in a group share one point.
+func QueryRecentChannelHealth(group string, limit int, now time.Time, interval int64) (ChannelHealthResult, error) {
+	limit = min(MaxChannelHealthSamples, max(1, limit))
+	interval = max(60, interval)
+	end := now.Unix()
+	start := end - 30*24*3600
+	result := ChannelHealthResult{Source: "channel_checks", WindowStart: start, WindowEnd: end, BucketSeconds: interval, SampleLimit: limit, SuccessSeries: []ChannelHealthPoint{}}
+	if strings.TrimSpace(group) == "" {
+		return result, nil
+	}
+	var buckets []struct {
+		BucketTs, Total, Passed, Latency, LastCheckedAt int64
+	}
+	err := DB.Model(&ChannelHealthCheck{}).
+		Select("checked_at - (checked_at % ?) AS bucket_ts, COUNT(*) AS total, SUM(CASE WHEN success = ? THEN 1 ELSE 0 END) AS passed, SUM(latency_ms) AS latency, MAX(checked_at) AS last_checked_at", interval, true).
+		Where("route_group IN ? AND checked_at >= ? AND checked_at <= ?", []string{group, "all"}, start, end).
+		Group("bucket_ts").Order("bucket_ts DESC").Limit(limit).Scan(&buckets).Error
+	if err != nil {
+		return result, err
+	}
+	if len(buckets) == 0 {
+		return result, nil
+	}
+	var total, passed, latency int64
+	for _, bucket := range buckets {
+		total += bucket.Total
+		passed += bucket.Passed
+		latency += bucket.Latency
+		result.LastCheckedAt = max(result.LastCheckedAt, bucket.LastCheckedAt)
+		result.SuccessSeries = append(result.SuccessSeries, ChannelHealthPoint{Ts: bucket.BucketTs, SuccessRate: float64(bucket.Passed) * 100 / float64(bucket.Total)})
+	}
+	slices.Reverse(result.SuccessSeries)
+	result.WindowStart = result.SuccessSeries[0].Ts
+	result.Summary = &ChannelHealthSummary{SuccessRate: float64(passed) * 100 / float64(total), AvgLatencyMs: latency / total}
 	return result, nil
 }

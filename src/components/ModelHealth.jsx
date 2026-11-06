@@ -44,7 +44,7 @@ export default function ModelHealth({ model, metric: selectedMetric, scope, metr
     else if (bar.offsetLeft + bar.offsetWidth > viewport.scrollLeft + viewport.clientWidth) viewport.scrollLeft = bar.offsetLeft + bar.offsetWidth - viewport.clientWidth;
   }, [probes, active]);
   return <div className="model-health">
-    <div className="model-health-heading" title={t(probes ? '{scope}的渠道检测成功率；按时间顺序展示实际检测记录' : '{scope}的实际调用成功率；每格一小时，灰色表示暂无请求', { scope: group })}><span><Activity size={13} />{t('状态趋势')}</span><strong className={`health-rate ${error ? 'unknown' : tone}`}>{label}</strong><small>{t('近 8 小时')}</small></div>
+    <div className="model-health-heading" title={t(probes ? '{scope}的渠道检测成功率；按时间顺序展示实际检测记录' : '{scope}的实际调用成功率；每格一小时，灰色表示暂无请求', { scope: group })}><span><Activity size={13} />{t('状态趋势')}</span><strong className={`health-rate ${error ? 'unknown' : tone}`}>{label}</strong><small>{probes && metrics?.sample_limit ? t('最近 {count} 次检测', { count: buckets.length }) : t('近 8 小时')}</small></div>
     <div className={`health-history ${probes ? 'probe-history' : ''}`}>
     <div className="health-timeline-viewport" ref={viewportRef}>
     <div className={`health-timeline ${probes ? 'probe-timeline' : ''}`} ref={timelineRef} role="group" tabIndex={buckets.length ? 0 : undefined}

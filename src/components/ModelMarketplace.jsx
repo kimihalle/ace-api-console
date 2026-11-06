@@ -55,7 +55,7 @@ export default function ModelMarketplace({ models, groups, catalog, quota, userG
       if (!active || inFlight || document.hidden) return;
       inFlight = true;
       try {
-        const data = await newApi.channelHealthSummary(`?${new URLSearchParams({ hours: '8', group: selectedGroup })}`);
+        const data = await newApi.channelHealthSummary(`?${new URLSearchParams({ limit: '96', group: selectedGroup })}`);
         if (active) setMonitor({ group: selectedGroup, data, loading: false, error: false });
       } catch {
         if (active) setMonitor({ group: selectedGroup, data: null, loading: false, error: true });

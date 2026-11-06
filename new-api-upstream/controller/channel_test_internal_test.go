@@ -569,7 +569,20 @@ func TestChannelHealthProbeToPublicSummary(t *testing.T) {
 	for _, privateField := range []string{"channel_id", "base_url", "latency_ms", "response_body"} {
 		require.NotContains(t, recorder.Body.String(), "\""+privateField+"\"")
 	}
-	for _, query := range []string{"", "?group=not-configured", "?group=default&hours=0", "?group=default&hours=25", "?group=default&hours=bad"} {
+	olderCheck := model.ChannelHealthCheck{ChannelID: channel.Id, RouteGroup: "default", CheckedAt: time.Now().Add(-2 * 24 * time.Hour).Unix(), Success: true}
+	require.NoError(t, db.Create(&olderCheck).Error)
+	recentRecorder := httptest.NewRecorder()
+	recentContext, _ := gin.CreateTestContext(recentRecorder)
+	recentContext.Request = httptest.NewRequest(http.MethodGet, "/api/perf-metrics/channel-health?group=default&limit=96", nil)
+	GetChannelHealthSummary(recentContext)
+	require.Equal(t, http.StatusOK, recentRecorder.Code)
+	require.NoError(t, common.Unmarshal(recentRecorder.Body.Bytes(), &response))
+	require.True(t, response.Success)
+	require.Equal(t, 96, response.Data.SampleLimit)
+	require.Len(t, response.Data.SuccessSeries, 2, "record-count mode must include real checks older than eight hours")
+	require.Equal(t, 100.0, response.Data.SuccessSeries[0].SuccessRate)
+	require.Equal(t, 0.0, response.Data.SuccessSeries[1].SuccessRate)
+	for _, query := range []string{"", "?group=not-configured", "?group=default&hours=0", "?group=default&hours=25", "?group=default&hours=bad", "?group=default&limit=0", "?group=default&limit=-1", "?group=default&limit=257", "?group=default&limit=bad"} {
 		recorder := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(recorder)
 		c.Request = httptest.NewRequest(http.MethodGet, "/api/perf-metrics/channel-health"+query, nil)

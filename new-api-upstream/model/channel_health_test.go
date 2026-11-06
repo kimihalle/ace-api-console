@@ -65,6 +65,11 @@ func TestChannelHealthPersistence(t *testing.T) {
 	require.Nil(t, empty.Summary)
 	require.Empty(t, empty.SuccessSeries, "unsampled intervals must not become healthy")
 	require.Equal(t, int64(96), (empty.WindowEnd-empty.WindowStart)/300+1)
+	recentEmpty, err := QueryRecentChannelHealth("alpha", 96, now, 1800)
+	require.NoError(t, err)
+	require.Empty(t, recentEmpty.SuccessSeries)
+	require.NotNil(t, recentEmpty.SuccessSeries)
+	require.Nil(t, recentEmpty.Summary)
 
 	require.NoError(t, RecordChannelHealthCheck(channel, now.Unix()-400, false, -50))
 	require.NoError(t, RecordChannelHealthCheck(channel, now.Unix()-300, true, 200))
@@ -125,4 +130,51 @@ func TestChannelHealthPersistence(t *testing.T) {
 	require.Less(t, tenMinute.SuccessSeries[0].Ts, tenMinute.SuccessSeries[1].Ts)
 	require.Equal(t, 100.0, tenMinute.SuccessSeries[0].SuccessRate)
 	require.Equal(t, 0.0, tenMinute.SuccessSeries[1].SuccessRate)
+
+	t.Run("recent checks grow past eight hours and roll only at the record limit", func(t *testing.T) {
+		// Clear only the disposable fixture's probe table to isolate wildcard data.
+		require.NoError(t, db.Where("1 = 1").Delete(&ChannelHealthCheck{}).Error)
+		checks := make([]ChannelHealthCheck, 0, 113)
+		for i := range 110 {
+			checks = append(checks, ChannelHealthCheck{ChannelID: 30, RouteGroup: "history", CheckedAt: now.Unix() - int64(i)*1800, Success: i < 96, LatencyMs: 100})
+		}
+		checks = append(checks,
+			ChannelHealthCheck{ChannelID: 31, RouteGroup: "all", CheckedAt: now.Unix() - 10, Success: false, LatencyMs: 200},
+			ChannelHealthCheck{ChannelID: 32, RouteGroup: "unrelated", CheckedAt: now.Unix(), Success: false},
+			ChannelHealthCheck{ChannelID: 30, RouteGroup: "history", CheckedAt: now.Unix() - 31*86400, Success: false},
+			ChannelHealthCheck{ChannelID: 30, RouteGroup: "history", CheckedAt: now.Unix() + 1800, Success: true, LatencyMs: 100},
+		)
+		require.NoError(t, db.Create(&checks).Error)
+		legacy, err := QueryChannelHealth("history", 8, now, 1800)
+		require.NoError(t, err)
+		require.Len(t, legacy.SuccessSeries, 16, "the old eight-hour window cannot grow past sixteen half-hour checks")
+		recent, err := QueryRecentChannelHealth("history", 96, now, 1800)
+		require.NoError(t, err)
+		require.Len(t, recent.SuccessSeries, 96)
+		require.Equal(t, 96, recent.SampleLimit)
+		require.Equal(t, now.Unix(), recent.LastCheckedAt)
+		require.Equal(t, now.Unix()-now.Unix()%1800-95*1800, recent.WindowStart)
+		require.Equal(t, recent.WindowStart, recent.SuccessSeries[0].Ts)
+		require.Equal(t, 100.0, recent.SuccessSeries[0].SuccessRate, "older failures outside the latest ninety-six intervals must not affect the summary")
+		require.Equal(t, 50.0, recent.SuccessSeries[95].SuccessRate, "same-interval wildcard and group checks share one point before limiting")
+		require.InDelta(t, 9600.0/97, recent.Summary.SuccessRate, 0.0001)
+		require.Equal(t, int64(9800/97), recent.Summary.AvgLatencyMs)
+		for i := 1; i < len(recent.SuccessSeries); i++ {
+			require.Less(t, recent.SuccessSeries[i-1].Ts, recent.SuccessSeries[i].Ts)
+		}
+		advanced, err := QueryRecentChannelHealth("history", 96, now.Add(30*time.Minute), 1800)
+		require.NoError(t, err)
+		require.Len(t, advanced.SuccessSeries, 96)
+		require.Equal(t, recent.SuccessSeries[1].Ts, advanced.SuccessSeries[0].Ts)
+		require.Equal(t, recent.SuccessSeries[95].Ts+1800, advanced.SuccessSeries[95].Ts)
+		all, err := QueryRecentChannelHealth("history", MaxChannelHealthSamples, now, 1800)
+		require.NoError(t, err)
+		require.Len(t, all.SuccessSeries, 110, "retention excludes expired and future records even with room left")
+		require.NoError(t, db.Create(&ChannelHealthCheck{ChannelID: 33, RouteGroup: "sparse", CheckedAt: now.Unix() - 12*3600, Success: true}).Error)
+		sparse, err := QueryRecentChannelHealth("sparse", 96, now, 1800)
+		require.NoError(t, err)
+		require.Len(t, sparse.SuccessSeries, 2, "missed intervals must stay absent; include only the old real check and the latest wildcard check")
+		require.Equal(t, 100.0, sparse.SuccessSeries[0].SuccessRate)
+		require.Equal(t, 0.0, sparse.SuccessSeries[1].SuccessRate)
+	})
 }

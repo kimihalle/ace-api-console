@@ -34,7 +34,18 @@ func GetChannelHealthSummary(c *gin.Context) {
 	if interval < 60 {
 		interval = 60
 	}
-	result, err := model.QueryChannelHealth(group, hours, time.Now(), interval)
+	var result model.ChannelHealthResult
+	var err error
+	if value, supplied := c.GetQuery("limit"); supplied {
+		limit, parseErr := strconv.Atoi(value)
+		if parseErr != nil || limit < 1 || limit > model.MaxChannelHealthSamples {
+			common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Invalid parameters"))
+			return
+		}
+		result, err = model.QueryRecentChannelHealth(group, limit, time.Now(), interval)
+	} else {
+		result, err = model.QueryChannelHealth(group, hours, time.Now(), interval)
+	}
 	if err != nil {
 		common.ApiError(c, common.NewMessage("Database error, please contact the administrator"))
 		return
