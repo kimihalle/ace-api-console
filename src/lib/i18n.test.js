@@ -32,10 +32,16 @@ test('usage duration header and export follow language changes without changing 
   try {
     setLanguage('en');
     assert.equal(t('耗时'), 'Duration');
-    assert.equal(usageCsvRow({ type: 2, use_time: 5 }, {})[usageColumns.indexOf('耗时')], '5.0s');
+    assert.equal(t('首字 / 耗时'), 'First token / Duration');
+    assert.equal(t('输入 / 输出 Token'), 'Input / Output tokens');
+    assert.equal(t('每日消费曲线图'), 'Daily spending line chart');
+    assert.equal(t('消耗额度（USD）'), 'Credits used (USD)');
+    assert.equal(t('总消耗 Token'), 'Total tokens used');
+    assert.equal(usageCsvRow({ type: 2, use_time: 5 }, {})[usageColumns.indexOf('耗时')], '5s');
     setLanguage('zh');
     assert.equal(t('耗时'), '耗时');
-    assert.equal(usageCsvRow({ type: 2, use_time: 5 }, {})[usageColumns.indexOf('耗时')], '5.0s');
+    assert.equal(t('首字 / 耗时'), '首字 / 耗时');
+    assert.equal(usageCsvRow({ type: 2, use_time: 5 }, {})[usageColumns.indexOf('耗时')], '5s');
   } finally {
     setLanguage(previous);
   }

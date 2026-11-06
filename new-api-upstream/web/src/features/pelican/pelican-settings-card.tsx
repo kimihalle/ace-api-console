@@ -287,6 +287,7 @@ export function PelicanSettingsCard() {
               variant='outline'
               disabled={
                 !query.data.config.enabled ||
+                count === 0 ||
                 form.formState.isDirty ||
                 run.isPending ||
                 save.isPending

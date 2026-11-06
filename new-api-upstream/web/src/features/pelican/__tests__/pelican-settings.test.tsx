@@ -17,7 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -116,20 +122,96 @@ describe('pelican administrator settings', () => {
     )
   })
 
-  it('blocks enabling with no selected model and exposes validation to the user', async () => {
+  it('saves removal of the last unavailable model and keeps manual sampling disabled', async () => {
+    const settings = {
+      config: {
+        enabled: true,
+        public_enabled: true,
+        retention_days: 7,
+        targets: [{ group: 'retired-group', models: ['retired-model'] }],
+      },
+      available: { vip: ['model-b'] },
+      prompt: 'fixed prompt',
+      prompt_version: 'v1',
+      interval_seconds: 3600,
+    }
+    vi.mocked(getPelicanSettings).mockResolvedValue(settings)
+    vi.mocked(savePelicanSettings).mockImplementation(async (config) => {
+      vi.mocked(getPelicanSettings).mockResolvedValue({ ...settings, config })
+      return config
+    })
+    const page = renderPage()
+    const user = userEvent.setup()
+    const checkbox = within(
+      await screen.findByRole('group', { name: 'retired-group' })
+    ).getByRole('checkbox')
+    expect(checkbox).toBeChecked()
+    await user.click(checkbox)
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await waitFor(() =>
+      expect(savePelicanSettings).toHaveBeenCalledWith(
+        {
+          enabled: true,
+          public_enabled: true,
+          retention_days: 7,
+          targets: [],
+        },
+        expect.anything()
+      )
+    )
+    page.unmount()
+    renderPage()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('switch', { name: 'Enable hourly pelican sampling' })
+      ).toBeChecked()
+    )
+    expect(screen.queryByText('retired-model')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Run current hour now' })
+    ).toBeDisabled()
+  })
+
+  it('removes only the chosen group when a similarly named unavailable group remains selected', async () => {
+    vi.mocked(getPelicanSettings).mockResolvedValue({
+      config: {
+        enabled: true,
+        public_enabled: true,
+        retention_days: 7,
+        targets: [
+          { group: 'OpenAIkey', models: ['model-a'] },
+          { group: 'OpenAIKey', models: ['model-a'] },
+        ],
+      },
+      available: { OpenAIkey: ['model-a'] },
+      prompt: 'fixed prompt',
+      prompt_version: 'v1',
+      interval_seconds: 3600,
+    })
     renderPage()
     const user = userEvent.setup()
-    await screen.findByText('model-a')
     await user.click(
-      screen.getByRole('switch', { name: 'Enable hourly pelican sampling' })
-    )
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
-    expect(
-      await screen.findByText(
-        'Choose between 1 and 20 pelican group/model pairs'
+      within(await screen.findByRole('group', { name: 'OpenAIkey' })).getByRole(
+        'checkbox'
       )
-    ).toBeVisible()
-    expect(savePelicanSettings).not.toHaveBeenCalled()
+    )
+    expect(
+      within(screen.getByRole('group', { name: 'OpenAIKey' })).getByRole(
+        'checkbox'
+      )
+    ).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await waitFor(() =>
+      expect(savePelicanSettings).toHaveBeenCalledWith(
+        {
+          enabled: true,
+          public_enabled: true,
+          retention_days: 7,
+          targets: [{ group: 'OpenAIKey', models: ['model-a'] }],
+        },
+        expect.anything()
+      )
+    )
   })
 
   it('saves the user workspace visibility setting independently of sampling', async () => {

@@ -35,3 +35,56 @@ export function aggregateDailyUsage(rows, window) {
   }
   return buckets;
 }
+
+export function summarizeDailyUsage(points) {
+  let totalQuota = 0;
+  let totalTokens = 0;
+  let maxQuota = 0;
+  for (const point of points) {
+    if (!point.recorded) continue;
+    totalQuota += point.quota;
+    totalTokens += point.tokens;
+    maxQuota = Math.max(maxQuota, point.quota);
+  }
+  return { totalQuota, totalTokens, maxQuota, averageQuota: points.length ? totalQuota / points.length : 0 };
+}
+
+// Keep unrecorded days as gaps. Bezier controls stay at the two measured values,
+// so smoothing can never invent a negative charge or overshoot a daily peak.
+export function buildUsageTrendChart(points) {
+  const width = 1000;
+  const height = 200;
+  const top = 14;
+  const baseline = 190;
+  const maximum = Math.max(0, ...points.filter((point) => point.recorded).map((point) => point.quota));
+  const magnitude = maximum > 0 ? 10 ** Math.floor(Math.log10(maximum / 4)) : 1;
+  const step = maximum > 0 ? [1, 2, 2.5, 5, 10].find((value) => value * magnitude >= maximum / 4) * magnitude : 1;
+  const ceiling = maximum > 0 ? Math.ceil(maximum / step) * step : 1;
+  const ticks = maximum > 0
+    ? Array.from({ length: Math.round(ceiling / step) + 1 }, (_, index) => ({ value: index * step, y: baseline - index * step / ceiling * (baseline - top) }))
+    : [{ value: 0, y: baseline }];
+  const plotted = points.map((point, index) => ({
+    ...point,
+    x: (index + 0.5) / points.length * width,
+    y: point.recorded ? baseline - point.quota / ceiling * (baseline - top) : null,
+  }));
+  const segments = [];
+  for (let index = 0; index < plotted.length; index++) {
+    const point = plotted[index];
+    if (!point.recorded) continue;
+    const previous = plotted[index - 1];
+    if (!previous?.recorded) segments.push([point]);
+    else segments.at(-1).push(point);
+  }
+  const curves = segments.filter((segment) => segment.length > 1).map((segment) => {
+    let line = `M ${segment[0].x} ${segment[0].y}`;
+    for (let index = 1; index < segment.length; index++) {
+      const previous = segment[index - 1];
+      const point = segment[index];
+      const middle = (previous.x + point.x) / 2;
+      line += ` C ${middle} ${previous.y}, ${middle} ${point.y}, ${point.x} ${point.y}`;
+    }
+    return { line, area: `${line} L ${segment.at(-1).x} ${baseline} L ${segment[0].x} ${baseline} Z` };
+  });
+  return { width, height, top, baseline, ticks, points: plotted, curves };
+}

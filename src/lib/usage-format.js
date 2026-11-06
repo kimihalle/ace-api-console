@@ -11,7 +11,18 @@ export function formatLogDuration(value) {
   if (typeof value !== 'number' && typeof value !== 'string') return '—';
   if (typeof value === 'string' && value.trim() === '') return '—';
   const seconds = Number(value);
-  return Number.isFinite(seconds) && seconds >= 0 ? `${seconds.toFixed(1)}s` : '—';
+  return Number.isFinite(seconds) && seconds >= 0 ? `${new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 3, useGrouping: false }).format(seconds)}s` : '—';
+}
+
+export function logTiming(row) {
+  const milliseconds = readLogOther(row).frt;
+  const hasFirstToken = row?.is_stream === true
+    && (typeof milliseconds === 'number' || typeof milliseconds === 'string')
+    && Number.isFinite(Number(milliseconds)) && Number(milliseconds) > 0;
+  return {
+    firstToken: hasFirstToken ? formatLogDuration(Number(milliseconds) / 1000) : '—',
+    total: formatLogDuration(row?.use_time),
+  };
 }
 
 export function formatMoney(value, symbol = '$') {
@@ -35,6 +46,13 @@ export function formatQuotaDisplay(value, status) {
   const rate = configuredRate > 0 && Number.isFinite(configuredRate) ? configuredRate : 1;
   const symbol = displayType === 'CNY' ? '¥' : displayType === 'CUSTOM' ? status?.custom_currency_symbol || '¤' : '$';
   return formatMoney(Number(value) / unit * rate, symbol);
+}
+
+// Account credits and settled usage share the same USD quota unit. Model prices
+// and cash payments have their own units; do not apply their rates to usage again.
+export function formatUsdQuota(value, status) {
+  if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '') return '—';
+  return formatQuotaDisplay(value, { quota_per_unit: status?.quota_per_unit, quota_display_type: 'USD' });
 }
 
 // Stored billing messages already contain the currency/unit used at purchase time.
@@ -85,7 +103,9 @@ export function usageLogQuery(rangeQuery) {
   return params;
 }
 
-export const usageColumns = ['时间', '模型', '分组', '输入 Token', '输出 Token', '缓存创建 Token', '缓存读取 Token', '额度使用', '消费（基数额度）', '耗时', '状态'];
+// Keep raw token counts in separate export columns for spreadsheet calculations.
+export const usageColumns = ['时间', '模型', '分组', '输入 Token', '输出 Token', '缓存创建 Token', '缓存读取 Token', '消耗额度（USD）', '首字', '耗时', '状态'];
+export const usageTableColumns = ['时间', '模型', '分组', '输入 / 输出 Token', '缓存创建 Token', '缓存读取 Token', '消耗额度（USD）', '首字 / 耗时', '状态'];
 
 export function usageGroupLabel(value, groups = []) {
   if (value == null || value === '') return '—';
@@ -95,10 +115,11 @@ export function usageGroupLabel(value, groups = []) {
 
 export function usageCsvRow(row, status, groups = []) {
   const usage = logUsage(row);
+  const timing = logTiming(row);
   return [
     Number(row.created_at) > 0 ? new Date(Number(row.created_at) * 1000).toLocaleString(getLocale()) : '—',
     row.model_name || '—', usageGroupLabel(row.group, groups), usage.input, usage.output, usage.cacheWrite, usage.cacheRead,
-    usage.quota, formatQuotaDisplay(usage.quota, status), formatLogDuration(row.use_time), t(Number(row.type) === 5 ? '失败' : '成功'),
+    formatUsdQuota(usage.quota, status), timing.firstToken, timing.total, t(Number(row.type) === 5 ? '失败' : '成功'),
   ].map((value) => value == null ? '—' : String(value));
 }
 

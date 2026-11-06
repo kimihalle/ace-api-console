@@ -76,7 +76,7 @@ func (config *PelicanConfig) Validate() error {
 		config.Targets = []PelicanTarget{}
 	}
 	if config.RetentionDays < 1 || config.RetentionDays > 30 {
-		return errors.New("Pelican retention must be between 1 and 30 days")
+		return common.NewMessage("Pelican retention must be between 1 and 30 days")
 	}
 	count := 0
 	groups := map[string]bool{}
@@ -84,22 +84,22 @@ func (config *PelicanConfig) Validate() error {
 		target := &config.Targets[i]
 		target.Group = strings.TrimSpace(target.Group)
 		if target.Group == "" || target.Group == "auto" || len(target.Group) > 64 || groups[target.Group] || len(target.Models) == 0 {
-			return errors.New("Invalid or duplicate pelican group")
+			return common.NewMessage("Invalid or duplicate pelican group")
 		}
 		groups[target.Group] = true
 		seen := map[string]bool{}
 		for j, name := range target.Models {
 			name = strings.TrimSpace(name)
 			if name == "" || len(name) > 255 || seen[name] {
-				return errors.New("Invalid or duplicate pelican model")
+				return common.NewMessage("Invalid or duplicate pelican model")
 			}
 			target.Models[j] = name
 			seen[name] = true
 			count++
 		}
 	}
-	if count > 20 || (config.Enabled && count == 0) {
-		return errors.New("Choose between 1 and 20 pelican group/model pairs")
+	if count > 20 {
+		return common.NewMessage("Choose at most 20 pelican group/model pairs")
 	}
 	return nil
 }
@@ -125,14 +125,21 @@ func SavePelicanConfig(config PelicanConfig) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}
+	previous, err := GetPelicanConfig()
+	if err != nil {
+		return err
+	}
 	catalog, err := PelicanAvailableTargets()
 	if err != nil {
 		return err
 	}
 	for _, target := range config.Targets {
 		for _, name := range target.Models {
-			if !slices.Contains(catalog[target.Group], name) {
-				return errors.New("Selected pelican model is not enabled in that group")
+			// A disabled channel or renamed group must not prevent removing
+			// other selections or pausing sampling. Only new selections need
+			// to be available; existing ones remain visible for removal.
+			if !previous.Publishes(target.Group, name) && !slices.Contains(catalog[target.Group], name) {
+				return common.NewMessage("Selected pelican model is not enabled in that group")
 			}
 		}
 	}

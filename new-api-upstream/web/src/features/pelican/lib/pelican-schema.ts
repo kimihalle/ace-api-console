@@ -35,11 +35,11 @@ export const pelicanSchema = z
       (sum, target) => sum + target.models.length,
       0
     )
-    if (count > 20 || (value.enabled && count === 0)) {
+    if (count > 20) {
       ctx.addIssue({
         code: 'custom',
         path: ['targets'],
-        message: 'Choose between 1 and 20 pelican group/model pairs',
+        message: 'Choose at most 20 pelican group/model pairs',
       })
     }
   })

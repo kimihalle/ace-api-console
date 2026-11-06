@@ -39,6 +39,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -375,6 +376,87 @@ func TestPelicanPersistenceAndPublicContract(t *testing.T) {
 	_, err = model.PelicanDue(config, now)
 	require.NoError(t, err)
 	require.NoError(t, runPelicanSamples(context.Background(), func(int, int) {}), "disabled schedule must never contact an upstream")
+
+	t.Run("removing groups survives stale selections and revokes public access without deleting history", func(t *testing.T) {
+		require.NoError(t, db.Create(&model.Channel{Id: 2, Type: constant.ChannelTypeOpenAI, Name: "stale-selection", Key: "isolated", Group: "default", Models: "gpt-4o-mini", Status: common.ChannelStatusEnabled}).Error)
+		require.NoError(t, db.Create(&model.Ability{Group: "default", Model: "gpt-4o-mini", ChannelId: 2, Enabled: true}).Error)
+		selected := model.PelicanConfig{Enabled: true, PublicEnabled: true, RetentionDays: 7, Targets: []model.PelicanTarget{
+			{Group: "vip", Models: []string{"gpt-4o-mini"}},
+			{Group: "default", Models: []string{"gpt-4o-mini"}},
+		}}
+		require.NoError(t, model.SavePelicanConfig(selected))
+		// The other group becomes unavailable after it was selected, as happens
+		// when a channel is disabled or its group/model mapping changes.
+		require.NoError(t, db.Model(&model.Channel{}).Where("id = ?", 2).Update("status", common.ChannelStatusManuallyDisabled).Error)
+		engine.PUT("/settings", UpdatePelicanSettings)
+		engine.POST("/run", RunPelicanSamples)
+		saveSettings := func(value model.PelicanConfig) *httptest.ResponseRecorder {
+			body, err := common.Marshal(value)
+			require.NoError(t, err)
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, httptest.NewRequest(http.MethodPut, "/settings", strings.NewReader(string(body))))
+			return response
+		}
+		selected.Targets = selected.Targets[1:]
+		response := saveSettings(selected)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		saved, err := model.GetPelicanConfig()
+		require.NoError(t, err)
+		assert.Equal(t, selected, saved, "a retained stale selection must not block unchecking another group")
+		var public struct {
+			Data struct {
+				Targets []struct{ Group, Model string }
+			}
+		}
+		require.NoError(t, common.Unmarshal(request("/catalog").Body.Bytes(), &public))
+		require.Len(t, public.Data.Targets, 1)
+		assert.Equal(t, "default", public.Data.Targets[0].Group)
+		assert.Equal(t, http.StatusNotFound, request("/history?group=vip&model=gpt-4o-mini").Code)
+		assert.Equal(t, http.StatusNotFound, request(fmt.Sprintf("/image/%d", sample.ID)).Code)
+		assert.Equal(t, http.StatusNotFound, request(fmt.Sprintf("/document/%d", sample.ID)).Code)
+		var retained model.PelicanSample
+		require.NoError(t, db.First(&retained, sample.ID).Error)
+		assert.Equal(t, "success", retained.Status, "unpublishing must preserve admin history")
+		var channel model.Channel
+		require.NoError(t, db.First(&channel, 1).Error)
+		assert.Equal(t, common.ChannelStatusEnabled, channel.Status, "unpublishing must not disable API routing")
+
+		selected.Enabled = false
+		response = saveSettings(selected)
+		require.Equal(t, http.StatusOK, response.Code, "pausing must also tolerate an existing unavailable selection")
+		saved, err = model.GetPelicanConfig()
+		require.NoError(t, err)
+		assert.False(t, saved.Enabled)
+
+		selected.Enabled = true
+		selected.Targets = []model.PelicanTarget{}
+		response = saveSettings(selected)
+		require.Equal(t, http.StatusOK, response.Code, "the last group can be unchecked without toggling the global switch")
+		saved, err = model.GetPelicanConfig()
+		require.NoError(t, err)
+		assert.Empty(t, saved.Targets)
+		require.NoError(t, common.Unmarshal(request("/catalog").Body.Bytes(), &public))
+		assert.Empty(t, public.Data.Targets)
+		due, err := model.PelicanDue(saved, now.Add(time.Hour))
+		require.NoError(t, err)
+		assert.False(t, due, "no targets must mean no scheduled probes")
+		require.NoError(t, runPelicanSamples(context.Background(), func(int, int) {}))
+		run := httptest.NewRecorder()
+		engine.ServeHTTP(run, httptest.NewRequest(http.MethodPost, "/run", nil))
+		assert.Equal(t, http.StatusBadRequest, run.Code, "no targets must not enqueue a manual probe")
+
+		selected.Targets = []model.PelicanTarget{{Group: "default", Models: []string{"gpt-4o-mini"}}}
+		response = saveSettings(selected)
+		assert.Equal(t, http.StatusBadRequest, response.Code, "a removed unavailable target cannot be added back")
+		var rejection struct {
+			MessageKey string `json:"message_key"`
+		}
+		require.NoError(t, common.Unmarshal(response.Body.Bytes(), &rejection))
+		assert.Equal(t, "Selected pelican model is not enabled in that group", rejection.MessageKey, "the console must be able to translate the validation error")
+		saved, err = model.GetPelicanConfig()
+		require.NoError(t, err)
+		assert.Empty(t, saved.Targets, "a rejected update must not change the saved configuration")
+	})
 }
 
 func TestPelicanRunsThroughConfiguredGroupWithoutAffectingHealthOrWallet(t *testing.T) {

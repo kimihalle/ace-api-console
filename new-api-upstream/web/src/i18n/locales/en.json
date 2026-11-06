@@ -7465,6 +7465,8 @@
     "Fixed sample prompt": "Fixed sample prompt",
     "90-second timeout, 8192 output tokens, at most 20 group/model pairs. SVG samples are illustrative, not proof of model identity.": "90-second timeout, 8192 output tokens, at most 20 group/model pairs. SVG samples are illustrative, not proof of model identity.",
     "Choose between 1 and 20 pelican group/model pairs": "Choose between 1 and 20 pelican group/model pairs",
+    "Choose at most 20 pelican group/model pairs": "Choose at most 20 pelican group/model pairs",
+    "Select a pelican model before running": "Select a pelican model before running",
     "Pelican retention must be between 1 and 30 days": "Pelican retention must be between 1 and 30 days",
     "Invalid or duplicate pelican group": "Invalid or duplicate pelican group",
     "Invalid or duplicate pelican model": "Invalid or duplicate pelican model",

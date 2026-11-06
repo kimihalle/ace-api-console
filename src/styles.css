@@ -1200,6 +1200,9 @@ td strong { color: #36404d; }
 .usage-detail-table .usage-model { display: block; max-width: 185px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 500; }
 .usage-detail-table .usage-cost { color: #584b42; font-weight: 600; }
 .usage-detail-table .usage-duration { white-space: nowrap; }
+.usage-detail-table .usage-pair { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.usage-detail-table .usage-pair-divider, .usage-detail-table .usage-timing-missing { color: var(--text-muted, #95887c); font-weight: 400; }
+.usage-detail-table .usage-timing-value { color: #14815a; font-weight: 650; }
 .status-pill.failure { color: #af534e; background: #fbece8; }
 .console-topnav .usage-pagination { align-items: center; font-size: 12px; }
 .console-topnav .market-panel { padding: 22px; }

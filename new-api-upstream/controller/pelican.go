@@ -154,11 +154,11 @@ func GetPelicanSettings(c *gin.Context) {
 func UpdatePelicanSettings(c *gin.Context) {
 	var config model.PelicanConfig
 	if err := common.DecodeJson(io.LimitReader(c.Request.Body, 32769), &config); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid pelican configuration"})
+		common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Invalid pelican configuration"))
 		return
 	}
 	if err := model.SavePelicanConfig(config); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		common.ApiErrorStatus(c, http.StatusBadRequest, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": config})
@@ -171,7 +171,11 @@ func RunPelicanSamples(c *gin.Context) {
 		return
 	}
 	if !config.Enabled {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Enable pelican sampling before running"})
+		common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Enable pelican sampling before running"))
+		return
+	}
+	if len(config.Targets) == 0 {
+		common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Select a pelican model before running"))
 		return
 	}
 	task, created, err := service.EnqueueSystemTask(model.SystemTaskTypePelican, pelicanTaskPayload{RetryRequestedAt: time.Now().Unix()})
@@ -474,7 +478,7 @@ func runPelicanSamples(ctx context.Context, report func(int, int)) error {
 
 func runPelicanSamplesWithRetry(ctx context.Context, report func(int, int), retryRequestedAt int64) error {
 	config, err := model.GetPelicanConfig()
-	if err != nil || !config.Enabled {
+	if err != nil || !config.Enabled || len(config.Targets) == 0 {
 		return err
 	}
 	if err := model.CleanupPelicanSamples(time.Now(), config.RetentionDays); err != nil {

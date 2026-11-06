@@ -16,7 +16,7 @@ import ModelMarketplace from './components/ModelMarketplace.jsx';
 import PelicanSamples from './components/PelicanSamples.jsx';
 import ImageStudio from './components/ImageStudio.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
-import { formatQuotaDisplay, formatLoggedAmount, formatLogDuration, readLogOther, logUsage, usageLogQuery, usageColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
+import { formatQuotaDisplay, formatUsdQuota, formatLoggedAmount, formatNumber, logTiming, readLogOther, logUsage, usageLogQuery, usageColumns, usageTableColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
 import { availableMarketGroups, configuredGroupRatio, marketGroupVendors } from './lib/model-marketplace.js';
 import { consolePage, consolePath, consoleReturnPath, isConsolePath } from './lib/routes.js';
 import { useLanguage } from './lib/use-language.js';
@@ -826,10 +826,10 @@ function Dashboard({ user, status, summary, announcements = [], onAnnouncement, 
   return <div className="page-stack">
     <section className="dashboard-top">
       <div className="panel balance-panel">
-        <SectionTitle title={t("账户额度")} />
+        <SectionTitle title={t("账户额度")} detail={t('美元额度（USD）')} />
         <div className="balance-grid">
-          <div className="balance-tile warm"><Metric icon={WalletCards} label={t("剩余额度")} value={formatQuotaDisplay(quota, status)} /></div>
-          <div className="balance-tile mint"><Metric icon={Activity} label={t("累计消耗")} value={formatQuotaDisplay(used, status)} tone="green" /></div>
+          <div className="balance-tile warm"><Metric icon={WalletCards} label={t("剩余额度")} value={formatUsdQuota(quota, status)} /></div>
+          <div className="balance-tile mint"><Metric icon={Activity} label={t("累计消耗")} value={formatUsdQuota(used, status)} note={t('账户历史累计')} tone="green" /></div>
         </div>
       </div>
       <div className="panel compact-panel">
@@ -931,29 +931,28 @@ function Usage({ data, status: siteStatus, rows, range, onRange, filters, models
   const pageCount = Math.max(1, Math.ceil(total / 20));
   return <div className="page-stack">
     <div className="usage-summary">
-      <div className="panel"><Metric icon={WalletCards} label={t("成功调用消费")} note={t('所选模型与日期范围')} value={formatQuotaDisplay(stats.quota, siteStatus)} /></div>
-      <div className="panel"><Metric icon={Zap} label={t("每分钟请求")} value={summaryValueFor(stats.rpm)} note="RPM" tone="green" /></div>
-      <div className="panel"><Metric icon={Gauge} label={t("每分钟 Tokens")} value={summaryValueFor(stats.tpm)} note="TPM" tone="blue" /></div>
+      <div className="panel" title={t('调用消费汇总未扣除后续退款，账户累计以仪表盘为准。')}><Metric icon={WalletCards} label={t('成功调用消耗（USD）')} note={t('所选日期、模型与分组')} value={formatUsdQuota(stats.quota, siteStatus)} /></div>
+      <div className="panel"><Metric icon={Zap} label={t("每分钟请求")} value={summaryValueFor(stats.rpm)} note={t('最近 60 秒 · RPM')} tone="green" /></div>
+      <div className="panel"><Metric icon={Gauge} label={t("每分钟 Tokens")} value={summaryValueFor(stats.tpm)} note={t('最近 60 秒 · TPM')} tone="blue" /></div>
     </div>
     <UsageTrend status={siteStatus} />
     <section className="panel table-panel usage-table-panel">
       <SectionTitle title={t("调用记录")} detail={t("共 {v0} 条记录", { v0: total.toLocaleString(getLocale()) })} action={<div className="usage-controls"><div className="segmented" aria-label={t("统计周期")}>{[['24h', t("24 小时")], ['7d', t("7 天")], ['30d', t("30 天")]].map(([value, label]) => <button key={value} className={range === value ? 'selected' : ''} onClick={() => onRange(value)}>{label}</button>)}</div><button className="button outline small" onClick={onExport} disabled={exportBusy}><Download size={15} />{exportBusy ? t("正在导出") : t("导出")}</button></div>} />
       <UsageFilters filters={filters} range={range} models={models} groups={groups} onApply={onApplyFilters} />
-      <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageColumns.map((label, index) => <th key={label} scope="col" className={index >= 3 && index <= 9 ? 'numeric' : ''} title={index === 7 ? t("实际扣除的内部额度；订阅请求使用订阅扣费额度") : index === 8 ? t("按站点额度单位换算的消费，保留本次请求的计费结果") : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
+      <div className="table-wrap usage-detail-wrap" tabIndex={0} role="region" aria-label={t("调用记录，可横向滚动")}><table className="usage-detail-table"><thead><tr>{usageTableColumns.map((label, index) => <th key={label} scope="col" className={index >= 3 && index <= 7 ? 'numeric' : ''} title={label === '消耗额度（USD）' ? t('本次调用已结算的美元额度，包含分组倍率及缓存计费') : label === '输入 / 输出 Token' ? t('输入包含上下文及缓存用量，输出为模型生成量') : label === '首字 / 耗时' ? t('首字为流式首次响应时间，耗时为请求总时长；未记录显示 —') : undefined}>{t(label)}</th>)}</tr></thead><tbody>{rows.map((row, index) => {
         const usage = logUsage(row);
+        const timing = logTiming(row);
         const failed = Number(row.type) === 5;
         const groupLabel = usageGroupLabel(row.group, groups);
         return <tr key={row.id ?? `${row.created_at}-${index}`}>
           <td className="usage-time">{logDate(row.created_at)}</td>
           <td><strong className="mono usage-model" title={row.model_name}>{row.model_name || '—'}</strong></td>
           <td><span className="soft-tag usage-group" title={groupLabel !== row.group ? row.group : undefined}>{groupLabel}</span></td>
-          <td className="numeric">{usage.input == null ? '—' : summaryValueFor(usage.input)}</td>
-          <td className="numeric">{usage.output == null ? '—' : summaryValueFor(usage.output)}</td>
+          <td className="numeric"><span className="usage-pair" aria-label={t('输入 {input}，输出 {output}', { input: formatNumber(usage.input), output: formatNumber(usage.output) })}><span title={t('输入 Token')}>{formatNumber(usage.input)}</span><span className="usage-pair-divider" aria-hidden="true">/</span><span title={t('输出 Token')}>{formatNumber(usage.output)}</span></span></td>
           <td className="numeric">{usage.cacheWrite == null ? '—' : summaryValueFor(usage.cacheWrite)}</td>
           <td className="numeric">{usage.cacheRead == null ? '—' : summaryValueFor(usage.cacheRead)}</td>
-          <td className="numeric">{usage.quota == null ? '—' : summaryValueFor(usage.quota)}</td>
-          <td className="numeric usage-cost" title={t(usage.source)}>{formatQuotaDisplay(usage.quota, siteStatus)}</td>
-          <td className="numeric usage-duration">{formatLogDuration(row.use_time)}</td>
+          <td className="numeric usage-cost" title={t(usage.source)}>{formatUsdQuota(usage.quota, siteStatus)}</td>
+          <td className="numeric usage-duration"><span className="usage-pair" aria-label={t('首字 {first}，耗时 {total}', { first: timing.firstToken, total: timing.total })}><span className={timing.firstToken === '—' ? 'usage-timing-missing' : 'usage-timing-value'} title={t('首字')}>{timing.firstToken}</span><span className="usage-pair-divider" aria-hidden="true">/</span><span className={timing.total === '—' ? 'usage-timing-missing' : 'usage-timing-value'} title={t('耗时')}>{timing.total}</span></span></td>
           <td><span className={`status-pill ${failed ? 'failure' : 'success'}`}>{failed ? t("失败") : t("成功")}</span></td>
         </tr>;
       })}</tbody></table></div>
