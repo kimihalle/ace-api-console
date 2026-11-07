@@ -236,14 +236,16 @@ function serializeGroupPricingRows(rows: GroupPricingRow[]) {
 
 function groupPricingSignature(rows: GroupPricingRow[]): string {
   return JSON.stringify(
-    rows.map((row) => ({
-      name: row.name.trim(),
-      ratio: normalizeRatio(row.ratio),
-      topupRatio:
-        row.topupRatio.trim() === '' ? '' : normalizeRatio(row.topupRatio),
-      selectable: row.selectable,
-      description: row.selectable ? row.description : '',
-    }))
+    rows
+      .filter((row) => row.name.trim())
+      .map((row) => ({
+        name: row.name.trim(),
+        ratio: normalizeRatio(row.ratio),
+        topupRatio:
+          row.topupRatio.trim() === '' ? '' : normalizeRatio(row.topupRatio),
+        selectable: row.selectable,
+        description: row.selectable ? row.description : '',
+      }))
   )
 }
 
@@ -572,17 +574,10 @@ function GroupPricingTable({
 
   const addRow = useCallback(() => {
     setSearch('')
-    const existingNames = new Set(rows.map((row) => row.name))
-    let index = 1
-    let name = `group_${index}`
-    while (existingNames.has(name)) {
-      index += 1
-      name = `group_${index}`
-    }
     emitRows([
       {
         _id: createGroupPricingId(),
-        name,
+        name: '',
         ratio: '1',
         topupRatio: '',
         selectable: true,
@@ -669,7 +664,12 @@ function GroupPricingTable({
               )}
             </CardDescription>
           </div>
-          <Button onClick={addRow} size='sm' className='shrink-0 sm:self-start'>
+          <Button
+            onClick={addRow}
+            disabled={isSaving}
+            size='sm'
+            className='shrink-0 sm:self-start'
+          >
             <Plus className='mr-2 h-4 w-4' />
             {t('Add group')}
           </Button>
