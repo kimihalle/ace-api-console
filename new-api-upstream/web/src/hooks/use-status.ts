@@ -16,10 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 import type { SystemStatus } from '@/features/auth/types'
-import { readCachedStatus, statusQueryOptions } from '@/lib/status-query'
+import {
+  readCachedStatus,
+  STATUS_QUERY_KEY,
+  statusQueryOptions,
+} from '@/lib/status-query'
 
 /** Seed value from the persisted snapshot, so the first render is not empty. */
 function getInitialStatus(): SystemStatus | undefined {
@@ -33,11 +38,26 @@ function getInitialStatus(): SystemStatus | undefined {
  * components costs one request. See `statusQueryOptions` for cache lifetimes.
  */
 export function useStatus() {
+  const queryClient = useQueryClient()
   const { data, isLoading, error } = useQuery({
     ...statusQueryOptions,
     // Use localStorage data as initial data
     placeholderData: getInitialStatus(),
   })
+
+  useEffect(() => {
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY })
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'ace-status-updated') refresh()
+    }
+
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [queryClient])
 
   return {
     status: (data as SystemStatus | null) ?? null,

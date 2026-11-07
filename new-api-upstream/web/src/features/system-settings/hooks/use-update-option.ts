@@ -34,6 +34,14 @@ const STATUS_RELATED_KEYS = new Set([
   'HeaderNavModules',
   'SidebarModulesAdmin',
   'Notice',
+  'console_setting.api_info',
+  'console_setting.api_info_enabled',
+  'console_setting.announcements',
+  'console_setting.announcements_enabled',
+  'console_setting.faq',
+  'console_setting.faq_enabled',
+  'console_setting.uptime_kuma_groups',
+  'console_setting.uptime_kuma_enabled',
   'LogConsumeEnabled',
   'log_setting.user_export_enabled',
   'log_setting.max_range_days',
@@ -65,6 +73,21 @@ export function useUpdateOption() {
       if (data.success) {
         // Always refresh system-options
         queryClient.invalidateQueries({ queryKey: ['system-options'] })
+
+        if (variables.key === 'Notice') {
+          // The notification popover keeps the current notice in its own
+          // query, so changing the option must invalidate that query too.
+          void queryClient.invalidateQueries({ queryKey: ['notice'] })
+          try {
+            window.localStorage.setItem(
+              'ace-notice-updated',
+              String(Date.now())
+            )
+          } catch {
+            /* Storage can be disabled. */
+          }
+          window.dispatchEvent(new Event('ace-notice-updated'))
+        }
 
         if (
           [
@@ -111,9 +134,13 @@ export function useUpdateOption() {
 
         // If updating frontend-display-related config, also refresh status
         if (STATUS_RELATED_KEYS.has(variables.key)) {
-          queryClient.invalidateQueries({ queryKey: ['status'] })
+          void queryClient.invalidateQueries({ queryKey: ['status'] })
           try {
             window.localStorage.removeItem('status')
+            window.localStorage.setItem(
+              'ace-status-updated',
+              String(Date.now())
+            )
           } catch {
             /* empty */
           }

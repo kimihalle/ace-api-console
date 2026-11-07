@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useStatus } from '@/hooks/use-status'
 import { getNotice } from '@/lib/api'
@@ -64,6 +64,7 @@ function getAnnouncementKey(item: Record<string, unknown>): string {
  * Provides unread counts and read status management
  */
 export function useNotifications() {
+  const queryClient = useQueryClient()
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'notice' | 'announcements'>(
     'notice'
@@ -82,6 +83,22 @@ export function useNotifications() {
 
   // Fetch Announcements from status
   const { status, loading: statusLoading } = useStatus()
+
+  useEffect(() => {
+    const refreshNotice = () => {
+      void queryClient.invalidateQueries({ queryKey: ['notice'] })
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'ace-notice-updated') refreshNotice()
+    }
+
+    window.addEventListener('ace-notice-updated', refreshNotice)
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('ace-notice-updated', refreshNotice)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [queryClient])
   const announcementsEnabled = status?.announcements_enabled ?? false
   const announcements = useMemo<Record<string, unknown>[]>(() => {
     if (!announcementsEnabled) return []

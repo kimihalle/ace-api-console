@@ -90,6 +90,43 @@ afterEach(() => {
 })
 
 describe('shared status query deduplication', () => {
+  test('refreshes active status consumers when another tab updates public settings', async () => {
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(STATUS_QUERY_KEY, {
+      system_name: 'cached',
+      announcements: [],
+    })
+    apiClient.get = async (url) => {
+      if (url !== '/api/status') throw new Error(`Unexpected GET ${url}`)
+      statusRequests.push(url)
+      return {
+        data: {
+          success: true,
+          data: {
+            system_name: 'refreshed',
+            announcements: [{ content: 'New announcement' }],
+          },
+        },
+      }
+    }
+    const hook = renderHook(() => useStatus(), {
+      wrapper: wrapper(queryClient),
+    })
+
+    expect(hook.result.current.status?.system_name).toBe('cached')
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: 'ace-status-updated' })
+    )
+
+    await waitFor(() => {
+      expect(hook.result.current.status?.system_name).toBe('refreshed')
+    })
+    expect(statusRequests).toEqual(['/api/status'])
+    expect(hook.result.current.status?.announcements).toEqual([
+      { content: 'New announcement' },
+    ])
+  })
+
   test.each(['cold', 'stale'] as const)(
     'deduplicates %s cache requests across guards and hook consumers',
     async (cacheState) => {

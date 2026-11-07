@@ -68,3 +68,63 @@ it('saving group order invalidates public pricing and notifies other console tab
     client.clear()
   }
 })
+
+it('saving the current notice refreshes its query and notifies other tabs', async () => {
+  vi.spyOn(api, 'put').mockResolvedValue({ data: { success: true } })
+  const client = new QueryClient()
+  client.setQueryData(['notice'], { success: true, data: 'Old notice' })
+  const wrapper = (props: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{props.children}</QueryClientProvider>
+  )
+  const { result } = renderHook(() => useUpdateOption(), { wrapper })
+  const notify = vi.fn()
+  window.addEventListener('ace-notice-updated', notify)
+
+  try {
+    await act(() =>
+      result.current.mutateAsync({ key: 'Notice', value: 'New notice' })
+    )
+
+    expect(client.getQueryState(['notice'])?.isInvalidated).toBe(true)
+    expect(localStorage.getItem('ace-notice-updated')).not.toBeNull()
+    expect(notify).toHaveBeenCalledOnce()
+  } finally {
+    window.removeEventListener('ace-notice-updated', notify)
+    client.clear()
+  }
+})
+
+it.each([
+  'console_setting.announcements',
+  'console_setting.announcements_enabled',
+])(
+  'saving %s invalidates the cached status used by public announcements',
+  async (key) => {
+    vi.spyOn(api, 'put').mockResolvedValue({ data: { success: true } })
+    const client = new QueryClient()
+    client.setQueryData(['status'], {
+      announcements_enabled: false,
+      announcements: [],
+    })
+    localStorage.setItem('status', JSON.stringify({ announcements: [] }))
+    const wrapper = (props: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        {props.children}
+      </QueryClientProvider>
+    )
+    const { result } = renderHook(() => useUpdateOption(), { wrapper })
+
+    try {
+      const value = key.endsWith('_enabled')
+        ? 'true'
+        : '[{"content":"Service update","publishDate":"2026-11-07T00:00:00Z","type":"default"}]'
+      await act(() => result.current.mutateAsync({ key, value }))
+
+      expect(client.getQueryState(['status'])?.isInvalidated).toBe(true)
+      expect(localStorage.getItem('status')).toBeNull()
+      expect(localStorage.getItem('ace-status-updated')).not.toBeNull()
+    } finally {
+      client.clear()
+    }
+  }
+)

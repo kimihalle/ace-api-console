@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Link } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +26,7 @@ import * as z from 'zod'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -96,6 +98,18 @@ export function NoticeSection({ defaultValue }: NoticeSectionProps) {
                     {...field}
                   />
                 </FormControl>
+                <FormDescription>
+                  {t(
+                    'This field shows one current notice. Saving new content replaces it and does not keep a history.'
+                  )}{' '}
+                  <Link
+                    className='text-primary underline underline-offset-4'
+                    to='/system-settings/content/$section'
+                    params={{ section: 'announcements' }}
+                  >
+                    {t('Manage announcement history')}
+                  </Link>
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

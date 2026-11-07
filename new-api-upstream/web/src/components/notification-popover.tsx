@@ -348,7 +348,7 @@ export function NotificationPopover({
             </TabsTrigger>
             <TabsTrigger value='announcements' className='gap-1.5'>
               <Megaphone className='size-3.5' />
-              {t('Timeline')}
+              {t('Announcement history')}
             </TabsTrigger>
           </TabsList>
 
