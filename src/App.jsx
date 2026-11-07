@@ -16,7 +16,7 @@ import ModelMarketplace from './components/ModelMarketplace.jsx';
 import PelicanSamples from './components/PelicanSamples.jsx';
 import ImageStudio from './components/ImageStudio.jsx';
 import ApiEndpoint from './components/ApiEndpoint.jsx';
-import { formatQuotaDisplay, formatUsdQuota, formatLoggedAmount, formatNumber, logTiming, readLogOther, logUsage, usageLogQuery, usageColumns, usageTableColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
+import { formatQuotaDisplay, formatUsdQuota, formatLoggedAmount, formatNumber, formatLogDuration, logTiming, readLogOther, logUsage, usageLogQuery, usageColumns, usageTableColumns, usageGroupLabel, usageCsvRow, csvLine } from './lib/usage-format.js';
 import { availableMarketGroups, configuredGroupRatio, marketGroupVendors } from './lib/model-marketplace.js';
 import { consolePage, consolePath, consoleReturnPath, isConsolePath, isBillingPath } from './lib/routes.js';
 import { useLanguage } from './lib/use-language.js';
@@ -480,6 +480,13 @@ function App() {
     return () => { active = false; };
   }, [route, page, billingActive, authUser?.id, usageRange, usageFilters, usagePage, keySearch, keyPage, billPage, keyRevision, referralRevision]);
 
+  useEffect(() => {
+    if (page !== 'usage' || !authUser?.id) return;
+    let active = true;
+    newApi.currentUser().then((user) => { if (active) setAuthUser(user); }).catch(() => { /* Keep the last known cumulative usage if refresh is unavailable. */ });
+    return () => { active = false; };
+  }, [page, authUser?.id]);
+
   const signOut = async () => {
     try { await logout(); } catch { clearAccessToken(); }
     setAuthUser(null);
@@ -787,7 +794,7 @@ function App() {
         {backendError && <div className="backend-error-banner"><CircleHelp size={16} /><span>{t(backendError)}</span><button onClick={() => setBackendError('')}>{t("关闭")}</button></div>}
         {page === 'dashboard' && <Dashboard user={authUser} status={siteStatus} summary={userSummary} announcements={announcements.items} announcementUnread={announcements.unreadCount} onAnnouncement={announcements.show} onNavigate={navigate} onToast={notify} referralCode={referralCode} referralLoading={referralLoading} referralError={referralError} onReferralRetry={() => setReferralRevision((value) => value + 1)} onReferralCopy={copyReferral} onReferralTransfer={() => { setReferralTransferError(''); setModal('transfer-referral'); }} />}
         {page === 'redeem' && <Redeem value={redeem} enabled={topUpInfo?.enable_redemption !== false} onChange={setRedeem} onSubmit={redeemCode} />}
-        {page === 'usage' && <Usage data={userSummary?.usage} status={siteStatus} rows={usageRows} range={usageRange} onRange={(value) => { setUsageRange(value); setUsagePage(1); }} filters={usageFilters} models={userModels} groups={groups} onApplyFilters={(filters, range) => { setUsageFilters(filters); setUsageRange(range); setUsagePage(1); }} page={usagePage} total={usageTotal} loading={usageLoading} onPage={setUsagePage} onExport={exportUsage} exportBusy={exportBusy} />}
+        {page === 'usage' && <Usage data={userSummary?.usage} totalConsumed={authUser?.used_quota} status={siteStatus} rows={usageRows} range={usageRange} onRange={(value) => { setUsageRange(value); setUsagePage(1); }} filters={usageFilters} models={userModels} groups={groups} onApplyFilters={(filters, range) => { setUsageFilters(filters); setUsageRange(range); setUsagePage(1); }} page={usagePage} total={usageTotal} loading={usageLoading} onPage={setUsagePage} onExport={exportUsage} exportBusy={exportBusy} />}
         {page === 'keys' && <Keys keys={keys} search={keySearch} onSearch={(value) => { setKeySearch(value); setKeyPage(1); }} page={keyPage} total={keyTotal} loading={keyLoading} onPage={setKeyPage} onConfigure={openKeyConfig} onReveal={revealKey} onCopy={copyKey} onToggle={toggleKey} onDelete={removeKey} onToast={notify} catalog={userModels} status={siteStatus} catalogLoading={catalogLoading} />}
         {page === 'models' && <ModelMarketplace models={userModels} groups={groups} catalog={pricingCatalog} quota={authUser?.quota} userGroup={authUser?.group} status={siteStatus} loading={catalogLoading} error={catalogError} onToast={notify} />}
         {page === 'images' && imageStudioMenuEnabled && <ImageStudio models={userModels} onToast={notify} />}
@@ -934,14 +941,14 @@ function UsageLegacy({ data, rows, onToast }) {
     <section className="panel table-panel"><SectionTitle title="最近调用" detail="最近的模型请求记录" action={<button className="button outline small" onClick={() => onToast('请在日志页面导出完整记录')}><FileText size={15} />导出指引</button>} /><div className="table-wrap"><table><thead><tr><th>模型</th><th>时间</th><th>输入 / 输出 Tokens</th><th>额度</th><th>状态</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row.id ?? index}>{labels(row).map((cell, cellIndex) => <td key={cellIndex}>{cellIndex === 0 ? <strong className="mono">{cell}</strong> : cellIndex === 4 ? <span className={`status-pill ${cell === '成功' ? 'success' : 'muted'}`}>{cell}</span> : cell}</td>)}</tr>)}</tbody></table></div>{!rows.length && <div className="table-empty">当前没有调用记录</div>}</section></div>;
 }
 
-function Usage({ data, status: siteStatus, rows, range, onRange, filters, models, groups, onApplyFilters, page, total, loading, onPage, onExport, exportBusy }) {
+function Usage({ data, totalConsumed, status: siteStatus, rows, range, onRange, filters, models, groups, onApplyFilters, page, total, loading, onPage, onExport, exportBusy }) {
   const stats = data && typeof data === 'object' ? data : {};
   const pageCount = Math.max(1, Math.ceil(total / 20));
   return <div className="page-stack">
     <div className="usage-summary">
-      <div className="panel" title={t('调用消费汇总未扣除后续退款，账户累计以仪表盘为准。')}><Metric icon={WalletCards} label={t('成功调用消耗（USD）')} note={t('所选日期、模型与分组')} value={formatUsdQuota(stats.quota, siteStatus)} /></div>
-      <div className="panel"><Metric icon={Zap} label={t("每分钟请求")} value={summaryValueFor(stats.rpm)} note={t('最近 60 秒 · RPM')} tone="green" /></div>
-      <div className="panel"><Metric icon={Gauge} label={t("每分钟 Tokens")} value={summaryValueFor(stats.tpm)} note={t('最近 60 秒 · TPM')} tone="blue" /></div>
+      <div className="panel"><Metric icon={WalletCards} label={t('成功调用消耗（USD）')} note={t('账户累计，不受下方筛选影响')} value={formatUsdQuota(totalConsumed, siteStatus)} /></div>
+      <div className="panel"><Metric icon={Zap} label={t('总请求数')} value={summaryValueFor(stats.request_count)} note={t('当前筛选范围')} tone="green" /></div>
+      <div className="panel"><Metric icon={Gauge} label={t('平均耗时')} value={Number(stats.request_count) > 0 ? formatLogDuration(stats.average_duration) : '—'} note={t('当前筛选范围')} tone="blue" /></div>
     </div>
     <UsageTrend status={siteStatus} />
     <section className="panel table-panel usage-table-panel">

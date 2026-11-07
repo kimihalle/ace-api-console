@@ -98,3 +98,16 @@ test('announcement counts and mark-read actions use announcement-specific transl
     setLanguage(previous);
   }
 });
+
+test('usage summary translations distinguish lifetime spend from the filtered request metrics', () => {
+  const previous = getLanguage();
+  try {
+    setLanguage('en');
+    assert.equal(t('账户累计，不受下方筛选影响'), 'Account total, unaffected by the filters below');
+    assert.equal(t('总请求数'), 'Total requests');
+    assert.equal(t('平均耗时'), 'Average duration');
+    assert.equal(t('当前筛选范围'), 'Current filters');
+  } finally {
+    setLanguage(previous);
+  }
+});

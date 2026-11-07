@@ -702,9 +702,11 @@ func streamLogs(tx *gorm.DB, order string, fn func(*Log) error) error {
 }
 
 type Stat struct {
-	Quota int `json:"quota"`
-	Rpm   int `json:"rpm"`
-	Tpm   int `json:"tpm"`
+	Quota           int     `json:"quota"`
+	Rpm             int     `json:"rpm"`
+	Tpm             int     `json:"tpm"`
+	RequestCount    int64   `json:"request_count"`
+	AverageDuration float64 `json:"average_duration"`
 }
 
 func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, usageOnly bool) (stat Stat, err error) {
@@ -712,9 +714,11 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 
 	// 为rpm和tpm创建单独的查询
 	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
+	requestStatsQuery := LOG_DB.Table("logs").Select("count(*) request_count, COALESCE(AVG(use_time), 0) average_duration")
 	if usageOnly {
 		tx = excludeInternalTestLogs(tx)
 		rpmTpmQuery = excludeInternalTestLogs(rpmTpmQuery)
+		requestStatsQuery = excludeInternalTestLogs(requestStatsQuery)
 	}
 
 	if tx, err = applyExplicitLogTextFilter(tx, "username", username); err != nil {
@@ -723,9 +727,13 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	if rpmTpmQuery, err = applyExplicitLogTextFilter(rpmTpmQuery, "username", username); err != nil {
 		return stat, err
 	}
+	if requestStatsQuery, err = applyExplicitLogTextFilter(requestStatsQuery, "username", username); err != nil {
+		return stat, err
+	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
 		rpmTpmQuery = rpmTpmQuery.Where("token_name = ?", tokenName)
+		requestStatsQuery = requestStatsQuery.Where("token_name = ?", tokenName)
 	}
 	if startTimestamp != 0 {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -733,23 +741,39 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	if endTimestamp != 0 {
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
+	if startTimestamp != 0 {
+		requestStatsQuery = requestStatsQuery.Where("created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		requestStatsQuery = requestStatsQuery.Where("created_at <= ?", endTimestamp)
+	}
 	if tx, err = applyExplicitLogTextFilter(tx, "model_name", modelName); err != nil {
 		return stat, err
 	}
 	if rpmTpmQuery, err = applyExplicitLogTextFilter(rpmTpmQuery, "model_name", modelName); err != nil {
 		return stat, err
 	}
+	if requestStatsQuery, err = applyExplicitLogTextFilter(requestStatsQuery, "model_name", modelName); err != nil {
+		return stat, err
+	}
 	if channel != 0 {
 		tx = tx.Where("channel_id = ?", channel)
 		rpmTpmQuery = rpmTpmQuery.Where("channel_id = ?", channel)
+		requestStatsQuery = requestStatsQuery.Where("channel_id = ?", channel)
 	}
 	if group != "" {
 		tx = tx.Where(map[string]any{"logs.group": group})
 		rpmTpmQuery = rpmTpmQuery.Where(map[string]any{"logs.group": group})
+		requestStatsQuery = requestStatsQuery.Where(map[string]any{"logs.group": group})
 	}
 
 	tx = tx.Where("type = ?", LogTypeConsume)
 	rpmTpmQuery = rpmTpmQuery.Where("type = ?", LogTypeConsume)
+	if logType == LogTypeConsume || logType == LogTypeError {
+		requestStatsQuery = requestStatsQuery.Where("type = ?", logType)
+	} else {
+		requestStatsQuery = requestStatsQuery.Where("type IN ?", []int{LogTypeConsume, LogTypeError})
+	}
 
 	// 只统计最近60秒的rpm和tpm
 	rpmTpmQuery = rpmTpmQuery.Where("created_at >= ?", time.Now().Add(-60*time.Second).Unix())
@@ -769,6 +793,16 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	}
 	stat.Rpm = rateStat.Rpm
 	stat.Tpm = rateStat.Tpm
+	var requestStats struct {
+		RequestCount    int64   `gorm:"column:request_count"`
+		AverageDuration float64 `gorm:"column:average_duration"`
+	}
+	if err := requestStatsQuery.Scan(&requestStats).Error; err != nil {
+		common.SysError(common.LogText("failed to query request statistics: %s", err.Error()))
+		return stat, common.NewMessage("Failed to query statistics")
+	}
+	stat.RequestCount = requestStats.RequestCount
+	stat.AverageDuration = requestStats.AverageDuration
 
 	return stat, nil
 }

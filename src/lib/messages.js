@@ -24,7 +24,7 @@ export const messages = {
   '美元额度（USD）': 'USD credits', '账户历史累计': 'Lifetime account usage',
   '消耗额度（USD）': 'Credits used (USD)', '成功调用消耗（USD）': 'Successful request usage (USD)',
   '所选日期、模型与分组': 'Selected dates, models and groups',
-  '最近 60 秒 · RPM': 'Last 60 seconds · RPM', '最近 60 秒 · TPM': 'Last 60 seconds · TPM',
+  '账户累计，不受下方筛选影响': 'Account total, unaffected by the filters below', '总请求数': 'Total requests', '平均耗时': 'Average duration', '当前筛选范围': 'Current filters',
   '本次调用已结算的美元额度，包含分组倍率及缓存计费': 'Settled USD credits for this request, including group rates and cache billing',
   '总消耗 Token': 'Total tokens used', '当日总 Token（输入 + 输出）': 'Daily tokens (input + output)',
   '输入与输出 Token 合计，缓存用量不重复累加': 'Input and output tokens combined; cached tokens are not counted twice',

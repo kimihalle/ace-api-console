@@ -177,9 +177,9 @@ func TestLogExportDatabaseMatrix(t *testing.T) {
 				rows := []model.Log{
 					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "default", TokenName: "Model test", Quota: 9000, RequestId: "internal-check", Other: `{"admin_info":{"internal_test":true}}`},
 					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "default", TokenName: "Model test", Quota: 9000, RequestId: "legacy-check"},
-					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-vip", TokenId: 42, TokenName: "Model test", Quota: 100, PromptTokens: 11, CompletionTokens: 2, RequestId: "api-call"},
-					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeError, Group: "api-vip", TokenId: 42, RequestId: "api-failure"},
-					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-public", Quota: 50, RequestId: "playground-call"},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-vip", TokenId: 42, TokenName: "Model test", Quota: 100, PromptTokens: 11, CompletionTokens: 2, UseTime: 4, RequestId: "api-call"},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeError, Group: "api-vip", TokenId: 42, UseTime: 8, RequestId: "api-failure"},
+					{UserId: 1, Username: "alice", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-public", Quota: 50, UseTime: 2, RequestId: "playground-call"},
 					{UserId: 2, Username: "bob", CreatedAt: now, Type: model.LogTypeConsume, Group: "api-vip", TokenId: 43, Quota: 999, RequestId: "other-user-call"},
 				}
 				for i := range rows {
@@ -209,9 +209,17 @@ func TestLogExportDatabaseMatrix(t *testing.T) {
 				stat := callLogHandler(t, statHandler, 1, common.RoleCommonUser, usageQuery)[0]
 				require.Equal(t, true, stat["success"])
 				assert.EqualValues(t, 160, stat["data"].(map[string]any)["quota"])
+				assert.EqualValues(t, 5, stat["data"].(map[string]any)["request_count"])
+				assert.InDelta(t, 14.0/5, stat["data"].(map[string]any)["average_duration"], 0.001)
 				stat = callLogHandler(t, statHandler, 1, common.RoleCommonUser, groupQuery)[0]
 				require.Equal(t, true, stat["success"])
-				assert.Equal(t, map[string]any{"quota": float64(100), "rpm": float64(1), "tpm": float64(13)}, stat["data"])
+				assert.Equal(t, map[string]any{"quota": float64(100), "rpm": float64(1), "tpm": float64(13), "request_count": float64(2), "average_duration": float64(6)}, stat["data"])
+				failedStat := callLogHandler(t, statHandler, 1, common.RoleCommonUser, groupQuery+"&type=5")[0]["data"].(map[string]any)
+				assert.EqualValues(t, 1, failedStat["request_count"])
+				assert.EqualValues(t, 8, failedStat["average_duration"])
+				successStat := callLogHandler(t, statHandler, 1, common.RoleCommonUser, groupQuery+"&type=2")[0]["data"].(map[string]any)
+				assert.EqualValues(t, 1, successStat["request_count"])
+				assert.EqualValues(t, 4, successStat["average_duration"])
 				admin := callLogHandler(t, GetAllLogs, 3, common.RoleAdminUser, query+"&request_id=internal-check")[0]
 				require.Equal(t, true, admin["success"])
 				assert.EqualValues(t, 1, admin["data"].(map[string]any)["total"], "admin diagnostics are retained")

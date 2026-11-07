@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatQuotaDisplay, formatUsdQuota, formatLoggedAmount, readLogOther, logUsage, logTiming, usageLogQuery, usageColumns, usageTableColumns, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets, healthProbeSamples } from './usage-format.js';
+import { formatQuotaDisplay, formatUsdQuota, formatLoggedAmount, formatLogDuration, readLogOther, logUsage, logTiming, usageLogQuery, usageColumns, usageTableColumns, usageGroupLabel, usageCsvRow, csvLine, healthHours, healthDisplayBuckets, healthProbeSamples } from './usage-format.js';
 
 test('quota units and currency precision stay consistent, including small call costs', () => {
   assert.equal(formatQuotaDisplay(50000000, { quota_per_unit: 500000 }), '$100.00');
@@ -87,6 +87,12 @@ test('usage exports show recorded request duration in seconds without using firs
     assert.equal(usageCsvRow({ ...row, use_time: seconds }, {})[durationIndex], expected);
   }
   assert.equal(usageCsvRow({ ...row, type: 5, use_time: 4 }, {})[durationIndex], '4s');
+});
+
+test('average usage durations retain fractional seconds and show in seconds', () => {
+  assert.equal(formatLogDuration(14 / 3), '4.667s');
+  assert.equal(formatLogDuration(0), '0s');
+  assert.equal(formatLogDuration(null), '—');
 });
 
 test('a large cached input remains input and compact table columns preserve separate export values', () => {
