@@ -785,7 +785,7 @@ function App() {
           {page === 'keys' && <button className="button primary" onClick={() => { setKeyError(''); setKeyName(''); setKeyLimit(''); setKeyExpiry(''); setModal('new-key'); }}><Plus size={17} />{t("创建新密钥")}</button>}
         </div>
         {backendError && <div className="backend-error-banner"><CircleHelp size={16} /><span>{t(backendError)}</span><button onClick={() => setBackendError('')}>{t("关闭")}</button></div>}
-        {page === 'dashboard' && <Dashboard user={authUser} status={siteStatus} summary={userSummary} announcements={announcements.items} onAnnouncement={announcements.show} onNavigate={navigate} onToast={notify} referralCode={referralCode} referralLoading={referralLoading} referralError={referralError} onReferralRetry={() => setReferralRevision((value) => value + 1)} onReferralCopy={copyReferral} onReferralTransfer={() => { setReferralTransferError(''); setModal('transfer-referral'); }} />}
+        {page === 'dashboard' && <Dashboard user={authUser} status={siteStatus} summary={userSummary} announcements={announcements.items} announcementUnread={announcements.unreadCount} onAnnouncement={announcements.show} onNavigate={navigate} onToast={notify} referralCode={referralCode} referralLoading={referralLoading} referralError={referralError} onReferralRetry={() => setReferralRevision((value) => value + 1)} onReferralCopy={copyReferral} onReferralTransfer={() => { setReferralTransferError(''); setModal('transfer-referral'); }} />}
         {page === 'redeem' && <Redeem value={redeem} enabled={topUpInfo?.enable_redemption !== false} onChange={setRedeem} onSubmit={redeemCode} />}
         {page === 'usage' && <Usage data={userSummary?.usage} status={siteStatus} rows={usageRows} range={usageRange} onRange={(value) => { setUsageRange(value); setUsagePage(1); }} filters={usageFilters} models={userModels} groups={groups} onApplyFilters={(filters, range) => { setUsageFilters(filters); setUsageRange(range); setUsagePage(1); }} page={usagePage} total={usageTotal} loading={usageLoading} onPage={setUsagePage} onExport={exportUsage} exportBusy={exportBusy} />}
         {page === 'keys' && <Keys keys={keys} search={keySearch} onSearch={(value) => { setKeySearch(value); setKeyPage(1); }} page={keyPage} total={keyTotal} loading={keyLoading} onPage={setKeyPage} onConfigure={openKeyConfig} onReveal={revealKey} onCopy={copyKey} onToggle={toggleKey} onDelete={removeKey} onToast={notify} catalog={userModels} status={siteStatus} catalogLoading={catalogLoading} />}
@@ -799,7 +799,7 @@ function App() {
       {modal === 'transfer-referral' ? <Dialog title={t('转入余额')} className="referral-transfer-dialog" onClose={() => { if (!referralBusy) setModal(''); }}><p className="transfer-description">{t('将全部邀请奖励转入账户余额，用于模型调用。')}</p><div className="transfer-amount">{formatQuotaDisplay(authUser?.aff_quota, siteStatus)}</div>{referralTransferError && <p className="form-error" role="alert">{t(referralTransferError)}</p>}<div className="modal-actions"><button className="button outline" disabled={referralBusy} onClick={() => setModal('')}>{t('取消')}</button><button className="button primary" disabled={referralBusy} onClick={transferReferral}>{t(referralBusy ? '正在转入…' : '确认转入')}</button></div></Dialog>
         : modal && <KeyDialog type={modal} name={keyName} setName={setKeyName} keyLimit={keyLimit} setKeyLimit={setKeyLimit} keyExpiry={keyExpiry} setKeyExpiry={setKeyExpiry} keySaving={keySaving} createdKey={createdKey} error={keyError} onClose={() => { if (keySaving) return; setModal(''); setCreatedKey(''); setKeyError(''); setEditingKey(null); }} onCreate={createKey} onUpdate={updateKey} onToast={notify} keyGroup={keyGroup} onKeyGroup={setKeyGroup} keyGroupOptions={keyGroupOptions} />}
       {toast && <div className="toast"><CheckCircle2 size={17} />{t(toast)}</div>}
-      {announcements.open && <AnnouncementDialog items={announcements.items} onClose={announcements.close} />}
+      {announcements.open && <AnnouncementDialog items={announcements.items} mode={announcements.mode} selected={announcements.selected} read={announcements.read} unreadCount={announcements.unreadCount} onSelect={announcements.select} onList={announcements.show} onMarkAllRead={announcements.markAllRead} onClose={announcements.close} />}
     </div>
   );
 }
@@ -824,7 +824,7 @@ function Metric({ icon: Icon, label, value, note, tone = 'orange' }) {
   return <div className="metric"><div className={`metric-icon ${tone}`}><Icon size={18} /></div><div className="metric-copy"><span>{label}</span><strong>{value}</strong>{note && <small>{note}</small>}</div></div>;
 }
 
-function Dashboard({ user, status, summary, announcements = [], onAnnouncement, onNavigate, onToast, referralCode, referralLoading, referralError, onReferralRetry, onReferralCopy, onReferralTransfer }) {
+function Dashboard({ user, status, summary, announcements = [], announcementUnread = 0, onAnnouncement, onNavigate, onToast, referralCode, referralLoading, referralError, onReferralRetry, onReferralCopy, onReferralTransfer }) {
   const quota = user?.quota;
   const used = user?.used_quota;
   const subscriptions = summary?.subscription?.subscriptions || summary?.subscription?.all_subscriptions || [];
@@ -857,7 +857,7 @@ function Dashboard({ user, status, summary, announcements = [], onAnnouncement, 
         <div className="notice warm-notice"><div className="notice-icon"><Zap size={17} /></div><div><strong>{t("连接你的工具")}</strong><p>{t("创建 API 密钥，在客户端设置接口地址和模型名称。")}</p><button className="text-button" onClick={() => onNavigate('keys')}>{t("管理 API 密钥")}</button></div></div>
       </div>
       <div className="panel info-panel"><SectionTitle title={t("系统公告")} action={<span className="subtle-label"><Megaphone size={15} />{t("服务通知")}</span>} />
-        <div className="notice yellow-notice"><div className="notice-icon"><Bell size={17} /></div><div className="announcement-card-copy"><strong>{announcement?.title || t("系统公告")}</strong>{announcement ? <><AnnouncementContent className="announcement-preview" content={announcement.content} /><button className="text-button" onClick={onAnnouncement}>{t('查看公告')}</button></> : <p>{t("当前暂无公告")}</p>}</div></div>
+        <div className="notice yellow-notice"><div className="notice-icon"><Bell size={17} /></div><div className="announcement-card-copy"><strong>{announcement?.title || t("系统公告")}</strong>{announcement ? <><AnnouncementContent className="announcement-preview" content={announcement.content} /><button className="text-button" onClick={onAnnouncement}>{t('查看公告')}{announcementUnread > 0 && <span className="announcement-card-unread" aria-label={t('{count} 条未读', { count: announcementUnread })}>{announcementUnread}</span>}</button></> : <p>{t("当前暂无公告")}</p>}</div></div>
       </div>
     </section>
 

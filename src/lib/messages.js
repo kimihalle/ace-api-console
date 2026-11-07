@@ -1,5 +1,9 @@
 // Only interface copy belongs here. Site names, groups, vendors, models and user input stay unchanged.
 export const messages = {
+  '新公告': 'New announcement', '公告列表': 'Announcement list', '公告详情': 'Announcement details', '最新公告': 'Latest announcement',
+  '全部已读': 'All read', '全部标为已读': 'Mark all announcements as read', '未读': 'Unread', '已读': 'Read', '共 {count} 条公告': '{count} announcements', '{count} 条未读': '{count} unread',
+  '返回公告列表': 'Back to announcements', '查看全部公告': 'View all announcements', '系统通知': 'System notice',
+  '最新服务动态，请留意': 'The latest updates to your service', '点击公告查看完整内容': 'Select an announcement to read more', '已读状态已保存': 'Marked as read',
   '购买与账单': 'Purchases and billing', '购买额度，查看充值与订阅账单': 'Buy credits and view your top-up and subscription history',
   '调用使用所选密钥扣费。请及时下载生成的图片。': 'Usage is charged to the selected key. Download generated images before leaving the page.',
   '生成记录': 'Generation history', '生成详情': 'Generation details', '生成日期': 'Generated at', '提示词': 'Prompt',

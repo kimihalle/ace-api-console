@@ -83,3 +83,18 @@ test('every interface translation is nonempty and preserves interpolation parame
     assert.deepEqual([...key.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort(), [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort(), key);
   }
 });
+
+test('announcement counts and mark-read actions use announcement-specific translations', () => {
+  const previous = getLanguage();
+  try {
+    setLanguage('en');
+    assert.equal(t('共 {count} 条公告', { count: 9 }), '9 announcements');
+    assert.equal(t('共 {count} 条', { count: 9 }), '9 orders');
+    assert.equal(t('全部标为已读'), 'Mark all announcements as read');
+    assert.equal(t('{count} 条未读', { count: 2 }), '2 unread');
+    setLanguage('zh');
+    assert.equal(t('共 {count} 条公告', { count: 9 }), '共 9 条公告');
+  } finally {
+    setLanguage(previous);
+  }
+});

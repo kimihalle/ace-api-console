@@ -280,31 +280,6 @@ td strong { color: #36404d; }
   .key-form .key-expiry-field { grid-column: 1 / -1; }
   .referral-header { align-items: flex-start; }
 }
-.announcement-dialog { width: min(100%, 540px); display: flex; flex-direction: column; max-height: min(85dvh, 680px); overflow: hidden; padding: 24px; border-radius: 18px; }
-.announcement-dialog .modal-heading { flex: none; margin-bottom: 20px; }
-.announcement-dialog-heading { display: flex; align-items: center; gap: 11px; }
-.announcement-dialog-heading h2 { font-size: 17px; }
-.announcement-symbol { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 12px; background: var(--accent-pale); color: var(--accent-deep); }
-.announcement-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; }
-.announcement-entry + .announcement-entry { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
-.announcement-entry h3 { margin: 0 0 8px; font-size: 15px; line-height: 1.6; }
-.announcement-entry time { display: block; color: var(--muted); margin-bottom: 10px; font-size: 11px; }
-.announcement-content { font-size: 13px; line-height: 1.85; color: #606a77; overflow-wrap: anywhere; }
-.announcement-content > :first-child { margin-top: 0; }
-.announcement-content > :last-child { margin-bottom: 0; }
-.announcement-content p { margin: 8px 0; font-size: inherit; color: inherit; line-height: inherit; }
-.announcement-content h1, .announcement-content h2, .announcement-content h3, .announcement-content h4 { color: var(--ink); font-size: 15px; line-height: 1.6; margin: 16px 0 8px; }
-.announcement-content a { color: var(--accent-deep); text-decoration: underline; text-underline-offset: 3px; }
-.announcement-content img { max-width: 100%; height: auto; border-radius: 8px; }
-.announcement-content pre { max-width: 100%; overflow-x: auto; padding: 12px; background: var(--soft); border-radius: 8px; }
-.announcement-content code { font-size: 12px; }
-.announcement-content blockquote { margin: 12px 0; border-left: 3px solid var(--accent); padding-left: 12px; }
-.announcement-content ul, .announcement-content ol { padding-left: 22px; }
-.announcement-content table { display: block; overflow-x: auto; max-width: 100%; }
-.announcement-extra { font-size: 12px; color: var(--muted); white-space: pre-wrap; }
-.announcement-dialog-actions { flex: none; display: flex; justify-content: flex-end; padding-top: 20px; margin-top: 20px; border-top: 1px solid var(--line); }
-.announcement-card-copy { min-width: 0; flex: 1; }
-.announcement-preview { max-height: 112px; overflow: hidden; margin-top: 6px; }
 .purchase-redirect { max-width: 520px; padding: 32px; color: var(--muted); }
 .purchase-redirect > svg { color: var(--accent); }
 .purchase-redirect > p { font-size: 13px; line-height: 1.8; }

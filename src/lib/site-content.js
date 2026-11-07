@@ -52,8 +52,9 @@ export function readAnnouncementVersions(userId, storage) {
 export function markAnnouncementsRead(userId, items, storage) {
   const key = announcementReadKey(userId);
   const read = readAnnouncementVersions(userId, storage);
-  items.forEach((item) => read.add(item.version));
-  const value = [...read].slice(-100);
+  items.forEach((item) => { read.delete(item.version); read.add(item.version); });
+  // The API can return 100 announcements in addition to the independent Notice.
+  const value = [...read].slice(-500);
   memoryRead.set(key, value);
   try { (storage ?? globalThis.localStorage)?.setItem(key, JSON.stringify(value)); } catch { /* Keep read state for this session if storage is unavailable. */ }
 }

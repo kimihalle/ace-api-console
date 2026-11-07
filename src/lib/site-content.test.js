@@ -53,3 +53,15 @@ test('announcement read state persists per user; malformed and blocked storage d
   markAnnouncementsRead('blocked-user', items, blocked);
   assert.equal(readAnnouncementVersions('blocked-user', blocked).has(items[0].version), true);
 });
+
+test('reading one announcement leaves the others unread; all 100 entries plus legacy Notice can stay read', () => {
+  const values = new Map();
+  const storage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value) };
+  const items = siteAnnouncements({ announcements_enabled: true, announcements: Array.from({ length: 100 }, (_, id) => ({ id, content: `Notice ${id}` })) }, 'Legacy Notice');
+  markAnnouncementsRead('read-one', [items[1]], storage);
+  assert.equal(readAnnouncementVersions('read-one', storage).size, 1);
+  assert.equal(readAnnouncementVersions('read-one', storage).has(items[0].version), false);
+  markAnnouncementsRead('read-all', items, storage);
+  assert.equal(readAnnouncementVersions('read-all', storage).size, 101);
+  assert.equal(JSON.parse(values.get(announcementReadKey('read-all'))).length, 101);
+});
