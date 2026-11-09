@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7f9" />
+    <title>API 接入文档</title>
+    <style>
+      :root { color-scheme: light; --ink: #17202a; --muted: #66717d; --line: #dce2e7; --panel: #fff; --soft: #f5f7f9; --accent: #1769aa; --accent-soft: #e8f2fb; --code: #17212b; }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; color: var(--ink); background: var(--soft); font: 15px/1.7 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; }
+      a { color: var(--accent); }
+      .topbar { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.97); }
+      .topbar-inner { width: min(1040px, calc(100% - 40px)); min-height: 64px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+      .brand { color: var(--ink); text-decoration: none; font-weight: 750; }
+      .brand img { display: none; max-width: 180px; max-height: 34px; object-fit: contain; }
+      .brand small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.2; }
+      .topnav { display: flex; gap: 20px; }
+      .topnav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+      .layout { width: min(1040px, calc(100% - 40px)); margin: 0 auto; display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 48px; }
+      .sidebar { position: sticky; top: 90px; align-self: start; padding: 30px 0; }
+      .sidebar strong { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+      .sidebar a { display: block; padding: 5px 9px; border-left: 2px solid transparent; color: var(--muted); text-decoration: none; font-size: 13px; }
+      .sidebar a:hover { border-color: var(--accent); color: var(--accent); }
+      main { min-width: 0; padding: 48px 0 72px; }
+      .hero { padding-bottom: 25px; border-bottom: 1px solid var(--line); }
+      .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; }
+      h1 { margin: 7px 0 9px; font-size: 38px; line-height: 1.2; }
+      h2 { margin: 42px 0 10px; font-size: 23px; line-height: 1.3; }
+      h3 { margin: 24px 0 7px; font-size: 17px; }
+      p { margin: 8px 0; }
+      .lead { color: var(--muted); font-size: 16px; }
+      .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 22px; }
+      .step { padding: 13px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+      .step b { display: block; margin-bottom: 3px; }
+      .hint { margin: 16px 0; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
+      table { width: 100%; margin: 14px 0; border-collapse: collapse; background: var(--panel); }
+      th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { width: 150px; background: #eef1f4; }
+      code { padding: 2px 5px; border-radius: 4px; background: #e9edf0; font-family: Consolas, "SFMono-Regular", monospace; font-size: .92em; overflow-wrap: anywhere; }
+      pre { overflow-x: auto; margin: 12px 0; padding: 16px; border-radius: 6px; background: var(--code); color: #eef4f8; font: 13px/1.65 Consolas, "SFMono-Regular", monospace; }
+      pre code { padding: 0; background: transparent; color: inherit; }
+      .format { margin-top: 26px; padding-top: 3px; }
+      .format h2 { margin-top: 28px; }
+      .footer { margin-top: 42px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+      @media (max-width: 720px) { .topbar-inner, .layout { width: min(100% - 28px, 600px); } .topnav { gap: 12px; } .topnav a:nth-child(2) { display: none; } .layout { display: block; } .sidebar { position: static; display: flex; gap: 7px; overflow-x: auto; padding: 15px 0 0; white-space: nowrap; } .sidebar strong { display: none; } .sidebar a { border-left: 0; border-bottom: 2px solid transparent; } .steps { grid-template-columns: 1fr; } main { padding-top: 28px; } h1 { font-size: 32px; } th { width: 115px; } }
+    </style>
+  </head>
+  <body>
+    <header class="topbar"><div class="topbar-inner"><a class="brand" href="/" id="brand"><img id="site-logo" alt="" /><span id="brand-name">API 接入文档</span><small>API 接入文档</small></a><nav class="topnav"><a href="#openai">OpenAI 格式</a><a href="#claude">Claude 格式</a><a href="#gemini">Gemini 格式</a><a href="/console">工作台</a></nav></div></header>
+    <div class="layout">
+      <aside class="sidebar" aria-label="目录"><strong>快速跳转</strong><a href="#start">开始前准备</a><a href="#models">查询模型</a><a href="#openai">OpenAI 格式</a><a href="#claude">Claude 格式</a><a href="#gemini">Gemini 格式</a><a href="#extras">Embeddings / Rerank</a><a href="#choose">不知道怎么选</a><a href="#help">调用失败</a></aside>
+      <main>
+        <section class="hero" id="start">
+          <div class="eyebrow">模型接入</div>
+          <h1><span id="site-name">API 接入文档</span></h1>
+          <p class="lead">登录工作台创建 API 密钥，从模型广场选择模型，再把接口地址、密钥和模型名称填进你使用的软件。</p>
+          <div class="steps">
+            <div class="step"><b>1. 登录工作台</b><span id="register-instruction">没有账户时，先从首页注册；若站点关闭注册，请联系管理员。</span></div>
+            <div class="step"><b>2. 创建 API 密钥</b>打开「API 密钥」→「创建新密钥」，填写名称并选择调用分组。</div>
+            <div class="step"><b>3. 复制模型并配置</b>从「模型广场」复制模型名称，再选择客户端支持的接口格式。</div>
+          </div>
+          <div class="hint"><strong>创建密钥时：</strong>调用分组为必选项；消费上限和到期时间可按需填写，留空分别表示不限制和永不过期。创建成功后请复制保存密钥，密钥列表会打码显示。</div>
+        </section>
+
+        <section id="models">
+          <h2>查询可用模型</h2>
+          <p>用创建好的 API 密钥查询它当前可用的模型，再把返回的模型名称复制到请求里。不同账户和调用分组能使用的模型可能不同。</p>
+          <pre><code>curl https://你的站点域名/v1/models \
+  -H "Authorization: Bearer 你的访问密钥"</code></pre>
+          <p>如果结果里没有目标模型，请检查工作台「模型广场」和创建密钥时选择的调用分组。</p>
+        </section>
+
+        <section class="format" id="openai">
+          <h2>OpenAI 格式</h2>
+          <p>如果软件里有「OpenAI」或「OpenAI Compatible」选项，按下面填写。API 地址使用本站域名后加 <code>/v1</code>；也可以登录工作台，在「API 密钥」页面复制「API 接入地址」。</p>
+          <table><tbody>
+            <tr><th>接口格式</th><td>OpenAI / OpenAI Compatible</td></tr>
+            <tr><th>API 地址</th><td><code id="openai-url">https://你的站点域名/v1</code></td></tr>
+            <tr><th>API Key</th><td>在「API 密钥」页面创建的密钥</td></tr>
+            <tr><th>模型名称</th><td>工作台「模型广场」中显示的名称</td></tr>
+          </tbody></table>
+          <p>命令行调用示例：替换站点域名、密钥和模型名称后再运行。</p>
+          <pre><code>curl https://你的站点域名/v1/chat/completions \
+  -H "Authorization: Bearer 你的访问密钥" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "控制台里的模型名称",
+    "messages": [
+      {"role": "user", "content": "你好"}
+    ]
+  }'</code></pre>
+        </section>
+
+        <section class="format" id="claude">
+          <h2>Claude 格式</h2>
+          <p>只有软件明确提供「Anthropic API」或「Claude API」选项时，才用这一组设置；API Key 使用同一个工作台密钥。</p>
+          <table><tbody>
+            <tr><th>接口格式</th><td>Anthropic / Claude</td></tr>
+            <tr><th>API 地址</th><td><code id="claude-url">https://你的站点域名</code></td></tr>
+            <tr><th>API Key</th><td>同一个控制台访问密钥</td></tr>
+            <tr><th>模型名称</th><td>工作台「模型广场」中显示的名称</td></tr>
+          </tbody></table>
+          <p>如果软件要求填写「完整接口地址」，填写 <code id="claude-endpoint">https://你的站点域名/v1/messages</code>。命令行示例：</p>
+          <pre><code>curl https://你的站点域名/v1/messages \
+  -H "x-api-key: 你的访问密钥" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "控制台里的模型名称",
+    "max_tokens": 512,
+    "messages": [
+      {"role": "user", "content": "你好"}
+    ]
+  }'</code></pre>
+        </section>
+
+        <section class="format" id="gemini">
+          <h2>Gemini 格式</h2>
+          <p>只有客户端明确支持 Google Gemini API 格式时，才用这一组设置。模型名称从工作台「模型广场」复制。</p>
+          <table><tbody>
+            <tr><th>接口格式</th><td>Google Gemini</td></tr>
+            <tr><th>API 地址</th><td><code id="gemini-url">https://你的站点域名</code></td></tr>
+            <tr><th>API Key</th><td>在「API 密钥」页面创建的密钥</td></tr>
+            <tr><th>模型名称</th><td>工作台「模型广场」中显示的名称</td></tr>
+          </tbody></table>
+          <p>命令行调用示例：</p>
+          <pre><code>curl https://你的站点域名/v1beta/models/控制台里的模型名称:generateContent \
+  -H "x-goog-api-key: 你的访问密钥" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contents": [
+      {"parts": [{"text": "你好"}]}
+    ]
+  }'</code></pre>
+        </section>
+
+        <section id="extras">
+          <h2>Embeddings 和 Rerank</h2>
+          <p>如果控制台已配置并向你的分组开放这类模型，可以使用下面的接口。没有对应模型或权限时不能调用。</p>
+          <h3>生成文本向量</h3>
+          <pre><code>curl https://你的站点域名/v1/embeddings \
+  -H "Authorization: Bearer 你的访问密钥" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "控制台里的向量模型名称",
+    "input": "需要转换成向量的文本"
+  }'</code></pre>
+          <h3>对候选文本排序</h3>
+          <pre><code>curl https://你的站点域名/v1/rerank \
+  -H "Authorization: Bearer 你的访问密钥" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "控制台里的重排模型名称",
+    "query": "要查找什么内容",
+    "documents": ["第一段候选文本", "第二段候选文本"]
+  }'</code></pre>
+        </section>
+
+        <section id="choose">
+          <h2>不知道怎么选？</h2>
+          <p>看你正在使用的软件提供什么选项：有 OpenAI 就选 OpenAI；写着 Anthropic / Claude 就选 Claude；写着 Google Gemini 就选 Gemini。每种格式都要使用「模型广场」里完全相同的模型名称。</p>
+        </section>
+
+        <section id="help">
+          <h2>调用失败时</h2>
+          <p><strong>密钥错误：</strong>确认密钥完整、没有多余空格，并检查密钥是否已停用或过期。</p>
+          <p><strong>模型不存在：</strong>回「模型广场」复制模型名称，不要凭印象输入。</p>
+          <p><strong>没有权限或余额不足：</strong>检查账户余额、密钥状态和创建密钥时选择的调用分组。</p>
+          <p><strong>Gemini 调用失败：</strong>确认客户端使用 Gemini 格式，模型名称没有多余空格，并且账户已开通该模型。</p>
+          <p>仍然失败时，在「使用统计」里查看调用记录。也可以把响应头里的 <code>X-Oneapi-Request-Id</code> 一并发给管理员，方便查找记录。不要发送访问密钥。</p>
+        </section>
+
+        <footer class="footer">可用模型、模型名称和费用以工作台显示及调用记录为准。请妥善保管 API 密钥。</footer>
+      </main>
+    </div>
+    <script>
+      (async () => {
+        const origin = location.origin;
+        document.querySelector('#openai-url').textContent = `${origin}/v1`;
+        document.querySelector('#claude-url').textContent = origin;
+        document.querySelector('#gemini-url').textContent = origin;
+        document.querySelector('#claude-endpoint').textContent = `${origin}/v1/messages`;
+        for (const code of document.querySelectorAll('pre code')) code.textContent = code.textContent.replaceAll('https://你的站点域名', origin);
+        const applyBranding = (status) => {
+          if (!status || typeof status !== 'object') return;
+          const name = typeof status.system_name === 'string' ? status.system_name.trim() : '';
+          const pageTitle = name ? `${name} API 接入文档` : 'API 接入文档';
+          document.title = pageTitle;
+          document.querySelector('#site-name').textContent = pageTitle;
+          document.querySelector('#brand-name').textContent = name || 'API 接入文档';
+          document.querySelector('.brand small').textContent = pageTitle;
+          document.querySelector('#brand').setAttribute('aria-label', pageTitle);
+          const canRegister = status.register_enabled !== false && status.password_register_enabled !== false;
+          document.querySelector('#register-instruction').textContent = canRegister
+            ? '从首页注册账户，按页面提示完成验证后登录。'
+            : '当前站点未开放注册，请联系管理员获取账户。';
+          const logo = status.logo || status.logo_url || status.system_logo;
+          const image = document.querySelector('#site-logo');
+          const brandName = document.querySelector('#brand-name');
+          if (typeof logo === 'string' && logo.trim()) {
+            image.src = logo;
+            image.alt = name;
+            image.style.display = 'block';
+            brandName.style.display = 'none';
+          } else {
+            image.removeAttribute('src');
+            image.style.display = 'none';
+            brandName.style.display = '';
+          }
+          const icon = status.favicon || '/newapi-admin/favicon.ico';
+          let iconLink = document.querySelector('link[rel~="icon"]');
+          if (!iconLink) {
+            iconLink = document.createElement('link');
+            iconLink.rel = 'icon';
+            document.head.append(iconLink);
+          }
+          iconLink.href = icon;
+        };
+        try {
+          const cached = JSON.parse(localStorage.getItem('ace-site-branding') || 'null');
+          applyBranding(cached);
+        } catch { /* Continue without cached site branding. */ }
+        try {
+          const response = await fetch(`${origin}/api/status`, { headers: { Accept: 'application/json' } });
+          if (!response.ok) return;
+          const payload = await response.json();
+          const status = payload && payload.data ? payload.data : payload;
+          applyBranding(status);
+        } catch { /* Keep cached branding when the status endpoint is unavailable. */ }
+      })();
+    </script>
+  </body>
+</html>

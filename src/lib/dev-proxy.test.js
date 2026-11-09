@@ -53,5 +53,10 @@ test('the dev server forwards admin pages and assets without loading the custome
   const frontend = await fetch(`${origin}/console/dashboard`);
   assert.equal(frontend.status, 200);
   assert.match(await frontend.text(), /\/@vite\/client/);
+
+  const docs = await fetch(`${origin}/docs/`);
+  assert.equal(docs.status, 200);
+  assert.match(docs.headers.get('content-type'), /text\/html/);
+  assert.match(await docs.text(), /API 接入文档/);
   assert.deepEqual(requests, [...responses.keys()]);
 });
