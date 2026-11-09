@@ -1,5 +1,6 @@
 // Only interface copy belongs here. Site names, groups, vendors, models and user input stay unchanged.
 export const messages = {
+  '文档': 'Documentation',
   '新公告': 'New announcement', '公告列表': 'Announcement list', '公告详情': 'Announcement details', '最新公告': 'Latest announcement',
   '全部已读': 'All read', '全部标为已读': 'Mark all announcements as read', '未读': 'Unread', '已读': 'Read', '共 {count} 条公告': '{count} announcements', '{count} 条未读': '{count} unread',
   '返回公告列表': 'Back to announcements', '查看全部公告': 'View all announcements', '系统通知': 'System notice',
@@ -203,7 +204,7 @@ export const messages = {
   '创建和管理你的 API 访问密钥': 'Create and manage your API credentials', '浏览可用模型、价格和接入方式': 'Explore available models and pricing', '选择适合你的使用额度': 'Find a subscription that fits your needs',
   '账户额度': 'Account balance', '剩余额度': 'Available balance', '累计消耗': 'Total spent', '当前订阅': 'Current subscription', '暂无订阅': 'No active subscription', '已开通': 'Active', '查看可购买套餐': 'Explore available plans', '查看订阅方案': 'View subscriptions',
   '账户状态': 'Account status', '正常': 'Active', '受限': 'Restricted', '分组：': 'Group: ', '兑换额度码': 'Redeem a code', '使用指南': 'Getting started', '快速开始': 'Quick start', '连接你的工具': 'Connect your tools',
-  '创建 API 密钥，在客户端设置接口地址和模型名称。': 'Create an API key, then set the API address and model in your client.', '管理 API 密钥': 'Manage API keys', '系统公告': 'Announcements', '服务通知': 'Updates', '当前暂无公告': 'No announcements yet',
+  '创建 API 密钥，在客户端设置接口地址和模型名称。': 'Create an API key, then set the API address and model in your client.', '管理 API 密钥': 'Manage API keys', '查看接入文档': 'View API docs', '系统公告': 'Announcements', '服务通知': 'Updates', '当前暂无公告': 'No announcements yet',
   '邀请推广': 'Referrals', '邀请朋友加入，获取账户奖励': 'Invite friends and earn account rewards', '邀请人数': 'People invited', '已获得额度': 'Credits earned', '可提取额度': 'Available rewards', '我的邀请链接': 'Your referral link', '该实例未提供邀请链接': 'Referral link unavailable', '当前实例未返回邀请代码': 'Referral code unavailable', '邀请链接已复制': 'Referral link copied', '复制链接': 'Copy link',
   '类型': 'Type', '时间': 'Time', '说明': 'Description', '正在读取账单…': 'Loading billing history…', '暂无账单记录': 'No billing history yet', '上一页': 'Previous', '下一页': 'Next',
   '第 {page} / {pages} 页': 'Page {page} of {pages}', '共 {v0} 条兑换、充值与订阅记录': '{v0} billing records', '共 {v0} 条记录': '{v0} records', '共 {v0} 个密钥': '{v0} keys',

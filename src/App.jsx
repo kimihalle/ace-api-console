@@ -36,6 +36,7 @@ import PurchaseWorkspace from './components/PurchaseWorkspace.jsx';
 import { usageFilterQuery } from './lib/usage-filters.js';
 import { applySiteBranding, cacheSiteBranding, readCachedBranding } from './lib/site-branding.js';
 import VendorIcon from './components/VendorIcon.jsx';
+import { isExternalDocsHref, resolveDocsHref } from './lib/docs-link.js';
 
 const navItems = [
   { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
@@ -838,6 +839,8 @@ function Dashboard({ user, status, summary, announcements = [], announcementUnre
   const activeSubscription = Array.isArray(subscriptions) ? subscriptions.find((item) => (item.subscription || item).status === 'active') : null;
   const activePlan = activeSubscription?.plan?.title || activeSubscription?.plan?.name || t("已开通");
   const announcement = announcements[0];
+  const docsHref = resolveDocsHref(status?.docs_link);
+  const externalDocs = isExternalDocsHref(docsHref);
   return <div className="page-stack">
     <section className="dashboard-top">
       <div className="panel balance-panel">
@@ -861,7 +864,7 @@ function Dashboard({ user, status, summary, announcements = [], announcementUnre
 
     <section className="dashboard-mid">
       <div className="panel info-panel"><SectionTitle title={t("使用指南")} action={<span className="subtle-label"><CircleHelp size={15} />{t("快速开始")}</span>} />
-        <div className="notice warm-notice"><div className="notice-icon"><Zap size={17} /></div><div><strong>{t("连接你的工具")}</strong><p>{t("创建 API 密钥，在客户端设置接口地址和模型名称。")}</p><button className="text-button" onClick={() => onNavigate('keys')}>{t("管理 API 密钥")}</button></div></div>
+        <div className="notice warm-notice"><div className="notice-icon"><Zap size={17} /></div><div className="guide-copy"><strong>{t("连接你的工具")}</strong><p>{t("创建 API 密钥，在客户端设置接口地址和模型名称。")}</p><div className="guide-actions"><button className="button primary small" onClick={() => onNavigate('keys')}><KeyRound size={15} />{t("管理 API 密钥")}</button><a className="button outline small" href={docsHref} target={externalDocs ? '_blank' : undefined} rel={externalDocs ? 'noopener noreferrer' : undefined}><FileText size={15} />{t("查看接入文档")}</a></div></div></div>
       </div>
       <div className="panel info-panel"><SectionTitle title={t("系统公告")} action={<span className="subtle-label"><Megaphone size={15} />{t("服务通知")}</span>} />
         <div className="notice yellow-notice"><div className="notice-icon"><Bell size={17} /></div><div className="announcement-card-copy"><strong>{announcement?.title || t("系统公告")}</strong>{announcement ? <><AnnouncementContent className="announcement-preview" content={announcement.content} /><button className="text-button" onClick={onAnnouncement}>{t('查看公告')}{announcementUnread > 0 && <span className="announcement-card-unread" aria-label={t('{count} 条未读', { count: announcementUnread })}>{announcementUnread}</span>}</button></> : <p>{t("当前暂无公告")}</p>}</div></div>

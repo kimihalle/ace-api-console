@@ -90,6 +90,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .notice-icon { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; }
 .notice strong { display: block; font-size: 14px; margin: 1px 0 4px; }
 .notice p { margin: 0; color: #76808e; font-size: 13px; line-height: 1.65; }
+.guide-copy { min-width: 0; }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .warm-notice { border-color: #ed8a4a; background: #fff7ef; color: #b95628; }
 .yellow-notice { border-color: #efba2d; background: #fffbeb; color: #a67707; }
 .text-button { border: 0; background: none; display: inline-flex; align-items: center; gap: 2px; color: var(--accent-deep); font-size: 12px; font-weight: 600; padding: 8px 0 0; cursor: pointer; }

@@ -7,6 +7,7 @@ import {
 import { clearAccessToken, logout, newApi } from '../lib/newapi.js';
 import { AccountAvatar, SiteBrand } from './Identity.jsx';
 import { useLanguage } from '../lib/use-language.js';
+import { resolveDocsHref } from '../lib/docs-link.js';
 import LanguageSwitcher from './LanguageSwitcher.jsx';
 
 export function PublicHome({ onNavigate, status, branding }) {
@@ -84,7 +85,6 @@ export function PublicHome({ onNavigate, status, branding }) {
     <footer className="site-footer"><a className="site-brand" href="/" onClick={(event) => { event.preventDefault(); onNavigate('/'); }}><span className="site-brand-icon">{brandIcon}</span><span>{displayName}<span className="brand-period">/</span></span></a><span>Model routing workspace</span><span>Powered by New API</span><button onClick={() => onNavigate(sessionUser ? '/console' : '/login')}>{sessionUser ? '进入工作台' : '登录'} <ArrowUpRight size={14} /></button></footer>
   </div>;
 }
-
 function IDEPreview({ displayName }) {
   const lines = [
     { indent: 0, parts: [{ text: 'const ', tone: 'keyword' }, { text: 'client ', tone: 'plain' }, { text: '= ', tone: 'operator' }, { text: 'new ', tone: 'keyword' }, { text: 'OpenAI', tone: 'type' }, { text: '({', tone: 'plain' }] },
@@ -126,11 +126,13 @@ function IDEPreview({ displayName }) {
     <div className="ide-statusbar"><span><i /> Ready</span><span>TypeScript&nbsp;&nbsp; UTF-8&nbsp;&nbsp; {displayName}</span></div>
   </div>;
 }
-
 function HomeLanding({ onNavigate, siteStatus, branding, displayName, title, subtitle, service, sessionUser, loggedInName, models, onSignOut }) {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
   const goTo = (target) => onNavigate(target);
+  const docsHref = resolveDocsHref(siteStatus?.docs_link);
+  const docsUrl = new URL(docsHref, window.location.origin);
+  const docsExternal = docsUrl.origin !== window.location.origin;
   const registrationOpen = Boolean(siteStatus) && siteStatus.register_enabled !== false && siteStatus.password_register_enabled !== false;
   const startPath = sessionUser ? '/console' : registrationOpen ? '/register' : '/login';
 
@@ -151,6 +153,7 @@ function HomeLanding({ onNavigate, siteStatus, branding, displayName, title, sub
       <SiteBrand status={branding} name={displayName} onNavigate={goTo} />
       <nav className="site-links">
         <LanguageSwitcher />
+        <a href={docsHref} target={docsExternal ? '_blank' : undefined} rel={docsExternal ? 'noopener noreferrer' : undefined}>{t("文档")}</a>
         {sessionUser ? <div className="profile-menu-wrap home-account-menu" ref={accountMenuRef}>
           <button className="site-user-link" type="button" onClick={() => setAccountMenuOpen((open) => !open)} aria-expanded={accountMenuOpen} aria-haspopup="menu" aria-label={t("打开账户菜单")}><AccountAvatar user={sessionUser} name={loggedInName} /><span>{loggedInName}</span><ChevronDown size={14} /></button>
           {accountMenuOpen && <div className="profile-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setAccountMenuOpen(false); goTo('/console'); }}>{t("进入控制台")}</button><button type="button" role="menuitem" className="profile-menu-danger" onClick={onSignOut}><LogOut size={14} />{t("退出登录")}</button></div>}
