@@ -83,6 +83,10 @@ export function loadPelicanDocument(id, signal) {
   return request(`/pelican/document/${encodeURIComponent(id)}`, { signal });
 }
 
+export function imageStudioSourceUrl(id, index) {
+  return `${API_ROOT}/api/image-studio/self/${encodeURIComponent(id)}/${index}`;
+}
+
 export async function login(credentials) {
   const status = await newApi.publicStatus();
   const passwordFields = status?.password_login_encryption_enabled
@@ -196,7 +200,7 @@ export async function generateImage(secret, payload, signal) {
   if (!response.ok || result?.error) {
     throw new Error(result?.error?.message || result?.message || `生成失败 (${response.status})`);
   }
-  return result;
+  return { data: result, requestId: response.headers.get('X-Oneapi-Request-Id') || '' };
 }
 
 export function newApiConsoleUrl() {
@@ -237,6 +241,8 @@ export const newApi = {
   storeCatalog: (signal) => request('/user/store/catalog', { signal }),
   createStoreOrder: (payload) => request('/user/store/orders', { method: 'POST', body: JSON.stringify(payload), unwrapData: false }),
   storeOrder: (tradeNo, signal) => request(`/user/store/orders/${encodeURIComponent(tradeNo)}`, { signal }),
+  saveImageStudioRecord: (payload) => request('/image-studio/self', { method: 'POST', body: JSON.stringify(payload) }),
+  imageStudioRecords: () => request('/image-studio/self', { cache: 'no-store' }),
   topUpOrders: (page = 1, signal) => request(`/user/topup/self?p=${page}&size=10`, { signal }),
   redeem: (code) => request('/user/topup', { method: 'POST', body: JSON.stringify({ key: code }) }),
   subscriptionPlans: () => request('/subscription/plans'),

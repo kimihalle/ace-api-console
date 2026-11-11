@@ -1,9 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, RefreshCw, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -42,6 +48,7 @@ export function ImageStudioLogs() {
   const [username, setUsername] = useState('')
   const [status, setStatus] = useState('all')
   const [selected, setSelected] = useState<UsageLog | null>(null)
+  const [preview, setPreview] = useState<UsageLog | null>(null)
   const query = useQuery({
     queryKey: ['image-studio-logs', page, username, status],
     queryFn: async () => {
@@ -63,6 +70,9 @@ export function ImageStudioLogs() {
   const rows = (query.data?.items ?? []) as UsageLog[]
   const total = query.data?.total ?? 0
   const selectedInfo = selected ? studioInfo(selected) : null
+  const previewCount = preview
+    ? Math.max(1, Number(studioInfo(preview).image_studio_count) || 1)
+    : 0
 
   return (
     <SettingsPageFrame title={t('Image generation records')}>
@@ -130,6 +140,7 @@ export function ImageStudioLogs() {
               <TableHead>{t('Amount')}</TableHead>
               <TableHead>{t('Duration')}</TableHead>
               <TableHead>{t('Status')}</TableHead>
+              <TableHead>{t('View')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -164,13 +175,30 @@ export function ImageStudioLogs() {
                   <TableCell>
                     {log.type === 5 ? t('Failed') : t('Success')}
                   </TableCell>
+                  <TableCell>
+                    {log.request_id && log.type !== 5 && (
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='icon-sm'
+                        aria-label={t('View')}
+                        title={t('View')}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setPreview(log)
+                        }}
+                      >
+                        <Eye className='size-4' />
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               )
             })}
             {!query.isLoading && rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={11}
                   className='text-muted-foreground py-12 text-center'
                 >
                   {t('No image generation records')}
@@ -180,7 +208,7 @@ export function ImageStudioLogs() {
             {query.isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={11}
                   className='text-muted-foreground py-12 text-center'
                 >
                   {t('Loading...')}
@@ -266,6 +294,29 @@ export function ImageStudioLogs() {
           </dl>
         </div>
       )}
+      <Dialog
+        open={preview !== null}
+        onOpenChange={(open) => { if (!open) setPreview(null) }}
+      >
+        <DialogContent className='sm:max-w-5xl'>
+          <DialogHeader>
+            <DialogTitle>{t('Images')}</DialogTitle>
+          </DialogHeader>
+          <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4'>
+            {preview && Array.from({ length: previewCount }, (_, index) => (
+              <div key={`${preview.request_id}-${index}`} className='aspect-square overflow-hidden rounded-md border bg-muted'>
+                <img
+                  src={`/api/image-studio/admin/${encodeURIComponent(preview.request_id)}/${index}`}
+                  alt={`${t('Images')} ${index + 1}`}
+                  loading='lazy'
+                  referrerPolicy='no-referrer'
+                  className='size-full object-contain'
+                />
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </SettingsPageFrame>
   )
 }

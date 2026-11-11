@@ -4,7 +4,7 @@ export function imageModels(models) {
 
 export function imageSources(payload) {
   const rows = Array.isArray(payload?.data) ? payload.data : [];
-  return rows.map((item) => item?.b64_json ? `data:image/png;base64,${item.b64_json}` : item?.url).filter((source) => typeof source === 'string' && (/^data:image\/(png|jpeg|webp);base64,/i.test(source) || /^https?:\/\//i.test(source)));
+  return rows.map((item) => item?.b64_json ? `data:image/png;base64,${item.b64_json}` : item?.url).filter((source) => typeof source === 'string' && (/^data:image\/(png|jpeg|webp);base64,/i.test(source) || /^https:\/\//i.test(source)));
 }
 
 export function imageRequest({ model, prompt, size, count }) {

@@ -88,3 +88,23 @@ it('applies the failed-status filter to the server query', async () => {
     )
   )
 })
+
+it('opens the generated image preview for the selected request', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  render(
+    <QueryClientProvider client={client}>
+      <ImageStudioLogs />
+    </QueryClientProvider>
+  )
+
+  await screen.findByText('a red tree')
+  await userEvent.click(screen.getByRole('button', { name: 'View' }))
+
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  expect(screen.getByAltText('Images 1')).toHaveAttribute(
+    'src',
+    '/api/image-studio/admin/req-image-1/0'
+  )
+})

@@ -17,7 +17,7 @@ export default function ImageStudioImageActions({ source, filename, onView, onTo
   };
 
   return <div className="image-studio-image-actions">
-    <button type="button" title={t('下载图片')} aria-label={t('下载图片')} disabled={downloading} onClick={() => void download()}>{downloading ? <LoaderCircle size={16} className="image-studio-spin" /> : <Download size={16} />}</button>
-    {onView && <button type="button" title={t('查看图片')} aria-label={t('查看图片')} onClick={onView}><Eye size={16} /></button>}
+    <button type="button" title={t('下载图片')} aria-label={t('下载图片')} disabled={downloading} onClick={(event) => { event.stopPropagation(); void download(); }}>{downloading ? <LoaderCircle size={16} className="image-studio-spin" /> : <Download size={16} />}</button>
+    {onView && <button type="button" title={t('查看图片')} aria-label={t('查看图片')} onClick={(event) => { event.stopPropagation(); onView(); }}><Eye size={16} /></button>}
   </div>;
 }

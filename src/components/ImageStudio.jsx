@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ImagePlus, LoaderCircle, Scan, Sparkles, WandSparkles, X } from 'lucide-react';
+import { History, ImagePlus, LoaderCircle, Scan, Sparkles, WandSparkles, X } from 'lucide-react';
 import ModelSelect from './ModelSelect.jsx';
 import ImageStudioImageActions from './ImageStudioImageActions.jsx';
+import ImageStudioHistoryDialog from './ImageStudioHistoryDialog.jsx';
 import ImageStudioPreviewDialog from './ImageStudioPreviewDialog.jsx';
-import { generateImage, newApi } from '../lib/newapi.js';
+import { generateImage, imageStudioSourceUrl, newApi } from '../lib/newapi.js';
 import { fullTokenKey } from '../lib/tokens.js';
 import { imageModels, imageRequest, imageSources } from '../lib/image-studio.js';
 import { ccSwitchModels } from '../lib/cc-switch.js';
@@ -22,7 +23,7 @@ const sizes = ['256x256', '512x512', '768x768', '1024x1024', '2048x2048', '1536x
   return { value, label: `${width} × ${height}`, icon: <SizeIcon width={width} height={height} /> };
 });
 
-export default function ImageStudio({ models = [], onToast }) {
+export default function ImageStudio({ models = [], userId, onToast }) {
   const [tokens, setTokens] = useState([]);
   const [tokensLoading, setTokensLoading] = useState(true);
   const [tokenId, setTokenId] = useState('');
@@ -34,6 +35,7 @@ export default function ImageStudio({ models = [], onToast }) {
   const [error, setError] = useState('');
   const [works, setWorks] = useState([]);
   const [preview, setPreview] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -86,11 +88,19 @@ export default function ImageStudio({ models = [], onToast }) {
       const key = await newApi.tokenKey(selectedToken.id);
       const secret = fullTokenKey(key?.key);
       if (!secret) throw new Error('无法读取密钥，请在 API 密钥页检查该密钥');
-      const response = await generateImage(secret, payload, controller.signal);
-      const sources = imageSources(response);
+      const generated = await generateImage(secret, payload, controller.signal);
+      const sources = imageSources(generated.data);
       if (!sources.length) throw new Error('上游未返回可显示的图片');
-      const record = { id: crypto.randomUUID(), model, prompt: payload.prompt, createdAt: Date.now(), sources };
-      setWorks((previous) => [record, ...previous].slice(0, 12));
+      const record = { id: crypto.randomUUID(), request_id: generated.requestId, model, prompt: payload.prompt, sources };
+      try {
+        if (!record.request_id) throw new Error('服务端没有返回请求编号');
+        await newApi.saveImageStudioRecord(record);
+        const saved = { ...record, createdAt: Date.now(), sources: sources.map((_, index) => imageStudioSourceUrl(record.id, index)) };
+        setWorks((previous) => [saved, ...previous].slice(0, 12));
+      } catch (cause) {
+        setWorks((previous) => [{ ...record, createdAt: Date.now() }, ...previous].slice(0, 12));
+        throw new Error(t('图片已生成，但记录保存失败：{reason}', { reason: cause.message || t('请稍后重试') }));
+      }
     } catch (cause) {
       setError(cause.message || '生成失败，请稍后重试');
     } finally {
@@ -120,10 +130,11 @@ export default function ImageStudio({ models = [], onToast }) {
         </form>
       </section>
       <section className="image-studio-results" aria-label={t('生成结果')}>
-        <div className="image-studio-results-head"><div><h2>{t('生成结果')}</h2><p>{works.length ? t('当前会话的作品') : t('你的作品会显示在这里')}</p></div>{works.length > 0 && <button className="image-studio-clear" type="button" onClick={() => setWorks([])} title={t('清空当前作品')} aria-label={t('清空当前作品')}><X size={17} /></button>}</div>
+        <div className="image-studio-results-head"><div><h2>{t('生成结果')}</h2><p>{works.length ? t('当前会话的作品') : t('你的作品会显示在这里')}</p></div><div className="image-studio-results-actions"><button className="image-studio-clear" type="button" onClick={() => setHistoryOpen(true)} title={t('生成记录')} aria-label={t('生成记录')}><History size={17} /></button>{works.length > 0 && <button className="image-studio-clear" type="button" onClick={() => setWorks([])} title={t('清空当前作品')} aria-label={t('清空当前作品')}><X size={17} /></button>}</div></div>
         {works.length ? <div className="image-studio-works">{works.map((work) => <article key={work.id} className="image-studio-work"><div className="image-studio-work-head"><strong>{work.model}</strong><time dateTime={new Date(work.createdAt).toISOString()}>{new Date(work.createdAt).toLocaleTimeString()}</time></div><div className="image-studio-art-grid">{work.sources.map((source, index) => <div className="image-studio-art" key={`${work.id}-${index}`}><img src={source} alt={`${work.prompt.slice(0, 80)} (${index + 1})`} /><ImageStudioImageActions source={source} filename={`image-${work.createdAt}-${index + 1}`} onView={() => setPreview({ record: work, source, index })} onToast={onToast} /></div>)}</div><p>{work.prompt}</p></article>)}</div> : <div className="image-studio-empty"><span><ImagePlus size={34} strokeWidth={1.5} /></span><strong>{t('还没有生成的图片')}</strong><p>{t('填写左侧设置，开始你的第一次创作')}</p></div>}
       </section>
     </div>
     {preview && <ImageStudioPreviewDialog {...preview} onClose={() => setPreview(null)} onToast={onToast} />}
+    {historyOpen && <ImageStudioHistoryDialog userId={userId} onClose={() => setHistoryOpen(false)} onToast={onToast} />}
   </div>;
 }

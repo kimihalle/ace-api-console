@@ -308,6 +308,13 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /pg/chat/completions": accessTokenSessionRule,
 }
 
+var imageStudioAccessTokenRouteRules = map[string]accessTokenRouteRule{
+	"POST /api/image-studio/self":                    accessTokenSessionRule,
+	"GET /api/image-studio/self":                     accessTokenSessionRule,
+	"GET /api/image-studio/self/:id/:index":           accessTokenSessionRule,
+	"GET /api/image-studio/admin/:request_id/:index": accessTokenSessionRule,
+}
+
 var (
 	permissionRouteRulesMu sync.RWMutex
 	permissionRouteRules   = map[string]accessTokenRouteRule{}
@@ -335,6 +342,9 @@ func AccessTokenRouteRule(key string) (accessTokenRouteRule, bool) {
 	if rule, ok := accessTokenRouteRules[key]; ok {
 		return rule, true
 	}
+	if rule, ok := imageStudioAccessTokenRouteRules[key]; ok {
+		return rule, true
+	}
 	permissionRouteRulesMu.RLock()
 	defer permissionRouteRulesMu.RUnlock()
 	rule, ok := permissionRouteRules[key]
@@ -347,6 +357,7 @@ func AccessTokenRouteRuleKeys() []string {
 	keys := slices.Collect(maps.Keys(permissionRouteRules))
 	permissionRouteRulesMu.RUnlock()
 	keys = slices.AppendSeq(keys, maps.Keys(accessTokenRouteRules))
+	keys = slices.AppendSeq(keys, maps.Keys(imageStudioAccessTokenRouteRules))
 	slices.Sort(keys)
 	return keys
 }

@@ -32,7 +32,7 @@ test('image request trims prompts and rejects invalid quantity before calling up
 });
 
 test('image response accepts URLs and base64 while discarding missing sources', () => {
-  assert.deepEqual(imageSources({ data: [{ url: 'https://example.test/a.png' }, { b64_json: 'AAAA' }, {}, { url: 'javascript:alert(1)' }] }), ['https://example.test/a.png', 'data:image/png;base64,AAAA']);
+  assert.deepEqual(imageSources({ data: [{ url: 'https://example.test/a.png' }, { b64_json: 'AAAA' }, {}, { url: 'http://example.test/insecure.png' }, { url: 'javascript:alert(1)' }] }), ['https://example.test/a.png', 'data:image/png;base64,AAAA']);
 });
 
 test('image request sends the selected full key and studio marker without persisting it', async () => {
@@ -42,10 +42,12 @@ test('image request sends the selected full key and studio marker without persis
     assert.equal(options.headers.Authorization, 'Bearer sk-secret');
     assert.equal(options.headers['X-Ace-Image-Studio'], '1');
     assert.deepEqual(JSON.parse(options.body), { model: 'image', prompt: 'tree', n: 1 });
-    return Response.json({ data: [{ url: 'https://example.test/a.png' }] });
+    return new Response(JSON.stringify({ data: [{ url: 'https://example.test/a.png' }] }), { headers: { 'Content-Type': 'application/json', 'X-Oneapi-Request-Id': 'request-1' } });
   };
   try {
-    assert.equal(imageSources(await generateImage('sk-secret', { model: 'image', prompt: 'tree', n: 1 })).length, 1);
+    const result = await generateImage('sk-secret', { model: 'image', prompt: 'tree', n: 1 });
+    assert.equal(result.requestId, 'request-1');
+    assert.equal(imageSources(result.data).length, 1);
   } finally {
     globalThis.fetch = original;
   }

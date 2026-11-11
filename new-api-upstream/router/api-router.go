@@ -352,6 +352,14 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/self/export", middleware.UserAuth(), controller.ExportUserLogs)
 		logRoute.GET("/self/search", middleware.UserAuth(), middleware.SearchRateLimit(), controller.SearchUserLogs)
 
+		imageStudioRoute := apiRouter.Group("/image-studio", middleware.DisableCache())
+		imageStudioSelfRoute := imageStudioRoute.Group("/self", middleware.UserAuth())
+		imageStudioSelfRoute.POST("", middleware.UserCriticalRateLimit("image-studio-record"), controller.SaveImageStudioRecord)
+		imageStudioSelfRoute.GET("", controller.GetUserImageStudioRecords)
+		imageStudioSelfRoute.GET("/:id/:index", controller.GetUserImageStudioSource)
+		imageStudioAdminRoute := imageStudioRoute.Group("/admin", middleware.AdminAuth())
+		imageStudioAdminRoute.GET("/:request_id/:index", controller.GetAdminImageStudioSource)
+
 		systemTaskRoute := apiRouter.Group("/system-task")
 		systemTaskRoute.Use(middleware.RootAuth())
 		{
