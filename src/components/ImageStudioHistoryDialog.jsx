@@ -3,6 +3,7 @@ import { ImagePlus } from 'lucide-react';
 import Dialog from './Dialog.jsx';
 import ImageStudioImageActions from './ImageStudioImageActions.jsx';
 import ImageStudioPreviewDialog from './ImageStudioPreviewDialog.jsx';
+import ImageStudioSourceImage from './ImageStudioSourceImage.jsx';
 import { getLocale, t } from '../lib/i18n.js';
 import { imageStudioSourceUrl, newApi } from '../lib/newapi.js';
 
@@ -28,7 +29,7 @@ export default function ImageStudioHistoryDialog({ userId, onClose, onToast }) {
           const source = imageStudioSourceUrl(record.id, index);
           const previewRecord = { ...record, createdAt: record.created_at * 1000 };
           return <article className="image-studio-history-item" key={`${record.id}-${index}`}>
-          <div className="image-studio-history-image"><button type="button" className="image-studio-history-open" title={t('查看图片')} aria-label={t('查看图片')} onClick={() => setSelected({ record: previewRecord, source, index })}><img src={source} alt={`${record.model} ${index + 1}`} loading="lazy" /></button><ImageStudioImageActions source={source} filename={`image-${record.created_at}-${index + 1}`} onView={() => setSelected({ record: previewRecord, source, index })} onToast={onToast} /></div>
+          <div className="image-studio-history-image"><button type="button" className="image-studio-history-open" title={t('查看图片')} aria-label={t('查看图片')} onClick={() => setSelected({ record: previewRecord, source, index })}><ImageStudioSourceImage source={source} alt={`${record.model} ${index + 1}`} loading="lazy" /></button><ImageStudioImageActions source={source} filename={`image-${record.created_at}-${index + 1}`} onView={() => setSelected({ record: previewRecord, source, index })} onToast={onToast} /></div>
           <div className="image-studio-history-caption"><strong title={record.model}>{record.model}</strong><time dateTime={new Date(record.created_at * 1000).toISOString()}>{new Date(record.created_at * 1000).toLocaleString(getLocale())}</time></div>
         </article>;
         }) )}

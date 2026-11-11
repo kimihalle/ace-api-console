@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { imageModels, imageRequest, imageSources } from './image-studio.js';
-import { generateImage } from './newapi.js';
+import { generateImage, loadImageStudioSource } from './newapi.js';
 import { IMAGE_STUDIO_HISTORY_LIMIT, imageStudioRecordsForUser } from './image-studio-records.js';
 
 test('image generation records are scoped to an account and have a bounded per-user history', () => {
@@ -48,6 +48,23 @@ test('image request sends the selected full key and studio marker without persis
     const result = await generateImage('sk-secret', { model: 'image', prompt: 'tree', n: 1 });
     assert.equal(result.requestId, 'request-1');
     assert.equal(imageSources(result.data).length, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('image record URLs load through the authenticated API and resolve external sources', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, '/api/image-studio/self/record-1/0');
+    assert.equal(options.credentials, 'include');
+    return Response.json({ success: true, data: { source: 'https://images.example.test/result.png' } });
+  };
+  try {
+    assert.deepEqual(
+      await loadImageStudioSource('http://localhost/api/image-studio/self/record-1/0'),
+      { url: 'https://images.example.test/result.png', revoke: false },
+    );
   } finally {
     globalThis.fetch = original;
   }

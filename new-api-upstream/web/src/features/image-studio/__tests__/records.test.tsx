@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { getAllLogs } from '@/features/usage-logs/api'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
+import { api } from '@/lib/http-client'
 
 import { ImageStudioLogs } from '..'
 
@@ -12,6 +13,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 vi.mock('@/features/usage-logs/api', () => ({ getAllLogs: vi.fn() }))
+vi.mock('@/lib/http-client', () => ({ api: { get: vi.fn() } }))
 
 const log = {
   id: 1,
@@ -46,6 +48,14 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+})
+
+beforeEach(() => {
+  vi.mocked(api.get).mockResolvedValue({
+    data: new Blob([JSON.stringify({ success: true, data: { source: 'https://images.example.test/result.png' } })], {
+      type: 'application/json',
+    }),
+  } as never)
 })
 
 it('loads only marked image requests and opens the selected record details', async () => {
@@ -103,8 +113,12 @@ it('opens the generated image preview for the selected request', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'View' }))
 
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
-  expect(screen.getByAltText('Images 1')).toHaveAttribute(
+  expect(await screen.findByAltText('Generated image 1')).toHaveAttribute(
     'src',
-    '/api/image-studio/admin/req-image-1/0'
+    'https://images.example.test/result.png'
+  )
+  expect(api.get).toHaveBeenCalledWith(
+    '/api/image-studio/admin/req-image-1/0',
+    { responseType: 'blob' }
   )
 })

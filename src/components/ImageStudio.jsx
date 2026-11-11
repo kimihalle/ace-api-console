@@ -4,7 +4,7 @@ import ModelSelect from './ModelSelect.jsx';
 import ImageStudioImageActions from './ImageStudioImageActions.jsx';
 import ImageStudioHistoryDialog from './ImageStudioHistoryDialog.jsx';
 import ImageStudioPreviewDialog from './ImageStudioPreviewDialog.jsx';
-import { generateImage, imageStudioSourceUrl, newApi } from '../lib/newapi.js';
+import { generateImage, newApi } from '../lib/newapi.js';
 import { fullTokenKey } from '../lib/tokens.js';
 import { imageModels, imageRequest, imageSources } from '../lib/image-studio.js';
 import { ccSwitchModels } from '../lib/cc-switch.js';
@@ -95,7 +95,7 @@ export default function ImageStudio({ models = [], userId, onToast }) {
       try {
         if (!record.request_id) throw new Error('服务端没有返回请求编号');
         await newApi.saveImageStudioRecord(record);
-        const saved = { ...record, createdAt: Date.now(), sources: sources.map((_, index) => imageStudioSourceUrl(record.id, index)) };
+        const saved = { ...record, createdAt: Date.now(), sources };
         setWorks((previous) => [saved, ...previous].slice(0, 12));
       } catch (cause) {
         setWorks((previous) => [{ ...record, createdAt: Date.now() }, ...previous].slice(0, 12));

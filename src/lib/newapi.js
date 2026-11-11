@@ -16,8 +16,8 @@ function unwrap(payload) {
 }
 
 async function parseResponse(response, unwrapData = true, responseType) {
-  if (responseType === 'blob' && response.ok) return response.blob();
   const type = response.headers.get('content-type') || '';
+  if ((responseType === 'blob' || (responseType === 'image-source' && !type.includes('application/json'))) && response.ok) return response.blob();
   const body = type.includes('application/json') ? await response.json() : await response.text();
   if (typeof body === 'string' && /<html|<!doctype/i.test(body)) throw new Error(t("服务端未连接：当前地址返回了网页而不是接口响应"));
   if (!response.ok) {
@@ -85,6 +85,19 @@ export function loadPelicanDocument(id, signal) {
 
 export function imageStudioSourceUrl(id, index) {
   return `${API_ROOT}/api/image-studio/self/${encodeURIComponent(id)}/${index}`;
+}
+
+export async function loadImageStudioSource(source) {
+  const parsed = new URL(source, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+  const route = parsed.pathname.match(/^\/api\/image-studio\/(self|admin)\/([^/]+)\/(\d+)$/);
+  if (!route) return { url: source, revoke: false };
+  const result = await request(`/image-studio/${route[1]}/${route[2]}/${route[3]}`, { responseType: 'image-source', cache: 'no-store' });
+  if (result instanceof Blob) {
+    const url = URL.createObjectURL(result);
+    return { url, revoke: true };
+  }
+  if (typeof result?.source === 'string' && /^https:\/\//i.test(result.source)) return { url: result.source, revoke: false };
+  throw new Error(t('无法读取生成图片'));
 }
 
 export async function login(credentials) {

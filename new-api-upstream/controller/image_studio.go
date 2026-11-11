@@ -134,7 +134,7 @@ func getImageStudioSource(c *gin.Context, record *model.ImageStudioRecord) {
 	}
 	c.Header("Referrer-Policy", "no-referrer")
 	c.Header("Cache-Control", "private, no-store")
-	c.Redirect(http.StatusFound, parsed.String())
+	common.ApiSuccess(c, gin.H{"source": parsed.String()})
 }
 
 func GetUserImageStudioSource(c *gin.Context) {

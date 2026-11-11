@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, RefreshCw, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ import { getAllLogs } from '@/features/usage-logs/api'
 import type { UsageLog } from '@/features/usage-logs/data/schema'
 import { formatQuota } from '@/lib/format'
 import { getServerErrorMessage } from '@/lib/server-error-message'
+import { api } from '@/lib/http-client'
 
 type StudioInfo = {
   image_studio_prompt?: string
@@ -39,6 +40,39 @@ function studioInfo(log: UsageLog): StudioInfo {
   } catch {
     return {}
   }
+}
+
+function GeneratedImage({ requestId, index }: { requestId: string; index: number }) {
+  const [source, setSource] = useState('')
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    let objectUrl = ''
+    setSource('')
+    setFailed(false)
+    api.get(`/api/image-studio/admin/${encodeURIComponent(requestId)}/${index}`, { responseType: 'blob' })
+      .then(async ({ data }) => {
+        const blob = data as Blob
+        if (blob.type.includes('application/json')) {
+          const envelope = JSON.parse(await blob.text()) as { data?: { source?: string } }
+          if (typeof envelope.data?.source !== 'string') throw new Error('Image source missing')
+          if (active) setSource(envelope.data.source)
+          return
+        }
+        objectUrl = URL.createObjectURL(blob)
+        if (active) setSource(objectUrl)
+      })
+      .catch(() => { if (active) setFailed(true) })
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [requestId, index])
+
+  if (failed) return <div className='text-muted-foreground grid size-full place-items-center text-sm'>Image unavailable</div>
+  if (!source) return <div className='text-muted-foreground grid size-full place-items-center text-sm'>Loading image...</div>
+  return <img src={source} alt={`Generated image ${index + 1}`} referrerPolicy='no-referrer' className='size-full object-contain' />
 }
 
 export function ImageStudioLogs() {
@@ -305,13 +339,7 @@ export function ImageStudioLogs() {
           <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4'>
             {preview && Array.from({ length: previewCount }, (_, index) => (
               <div key={`${preview.request_id}-${index}`} className='aspect-square overflow-hidden rounded-md border bg-muted'>
-                <img
-                  src={`/api/image-studio/admin/${encodeURIComponent(preview.request_id)}/${index}`}
-                  alt={`${t('Images')} ${index + 1}`}
-                  loading='lazy'
-                  referrerPolicy='no-referrer'
-                  className='size-full object-contain'
-                />
+                <GeneratedImage requestId={preview.request_id} index={index} />
               </div>
             ))}
           </div>

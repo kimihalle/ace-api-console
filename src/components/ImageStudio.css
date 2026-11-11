@@ -44,6 +44,7 @@
 .image-studio-history-open { display:block; width:100%; height:100%; padding:0; border:0; background:transparent; cursor:zoom-in; }
 .image-studio-history-open:focus-visible { outline:2px solid #c7694b; outline-offset:2px; }
 .image-studio-history-image img { width:100%; height:100%; display:block; object-fit:contain; }
+.image-studio-source-error { display:grid; width:100%; height:100%; place-items:center; padding:12px; color:#9a6a58; font-size:12px; text-align:center; }
 .image-studio-image-actions { position:absolute; z-index:1; top:8px; right:8px; display:flex; gap:5px; }
 .image-studio-image-actions button,.image-studio-preview-zoom button,.image-studio-copy-prompt { display:grid; width:31px; height:31px; place-items:center; border:1px solid #e8e3dc; border-radius:5px; background:#ffffffed; color:#444944; cursor:pointer; }
 .image-studio-image-actions button:hover,.image-studio-preview-zoom button:hover,.image-studio-copy-prompt:hover { border-color:#c7694b; color:#a9543a; }
