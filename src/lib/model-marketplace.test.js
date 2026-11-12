@@ -84,3 +84,65 @@ test('missing prices or ratios are never silently presented as free; dynamic mod
   assert.equal(estimatedGroupCredit(50000000, 0, {}), '不扣额度');
   assert.equal(estimatedGroupCredit(null, 1, {}), '—');
 });
+
+test('expression tier prices are multiplied by the selected group ratio', () => {
+  const expressionPricing = {
+    tiers: [{ tier: { label: '基础档', conditions: [], inputPrice: 2, outputPrice: 8, cacheReadPrice: 0.2 }, kind: 'token' }],
+    hasRequestRules: false,
+  };
+  const display = marketPriceDisplay({
+    ...model,
+    pricing: { ...model.pricing, billing_mode: 'tiered_expr' },
+  }, 'discounted', {}, expressionPricing);
+  assert.equal(display.unit, '每百万 Tokens');
+  assert.deepEqual(display.items, [
+    ['输入 · 基础档', '$2.00', '$1.00'],
+    ['输出 · 基础档', '$8.00', '$4.00'],
+    ['缓存读取 · 基础档', '$0.20', '$0.10'],
+  ]);
+  assert.deepEqual(marketPriceDisplay({
+    ...model,
+    pricing: { ...model.pricing, billing_mode: 'tiered_expr' },
+  }, 'free', {}, expressionPricing).items.map((item) => item[2]), ['$0.00', '$0.00', '$0.00']);
+});
+
+test('expression price display preserves conditional tiers and request prices', () => {
+  const expressionPricing = {
+    tiers: [
+      { tier: { label: '短上下文', conditions: [{ var: 'len', op: '<', value: 1000 }], inputPrice: 1, outputPrice: 3 }, kind: 'token' },
+      { tier: { label: '长上下文', conditions: [], billingUnit: 'request', fixedPrice: 0.02 }, kind: 'token' },
+    ],
+    hasRequestRules: true,
+  };
+  const display = marketPriceDisplay({
+    ...model,
+    pricing: { ...model.pricing, billing_mode: 'tiered_expr' },
+  }, 'discounted', {}, expressionPricing);
+  assert.equal(display.unit, '价格单位见项目');
+  assert.equal(display.items[0][0], '输入 · 短上下文 · 上下文长度 < 1000');
+  assert.equal(display.items.at(-1)[2], '$0.01');
+  assert.equal(display.note, '展示基础价格，实际费用可能受请求规则影响');
+});
+
+test('task expression prices use task units and the current group ratio', () => {
+  const display = marketPriceDisplay({
+    ...model,
+    pricing: { ...model.pricing, billing_mode: 'tiered_expr' },
+  }, 'discounted', {}, {
+    tiers: [{
+      kind: 'task',
+      usageSchema: { seconds: { unit: 'second' } },
+      tier: { label: '标准档', conditions: [], constant: 0, unitPrices: { seconds: 0.4 } },
+    }],
+    hasRequestRules: false,
+  });
+  assert.equal(display.unit, '任务用量价格（单位见项目）');
+  assert.deepEqual(display.items, [['seconds（每秒） · 标准档', '$0.40', '$0.20']]);
+});
+
+test('unrecognized expression structures still fall back instead of guessing a price', () => {
+  assert.equal(marketPriceDisplay({
+    ...model,
+    pricing: { ...model.pricing, billing_mode: 'tiered_expr' },
+  }, 'discounted', {}, null).mode, '动态计费价格需按规则计算');
+});

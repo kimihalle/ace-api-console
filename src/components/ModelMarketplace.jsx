@@ -6,6 +6,7 @@ import ModelHealth from './ModelHealth.jsx';
 import { useLanguage } from '../lib/use-language.js';
 import { newApi } from '../lib/newapi.js';
 import { copyText } from '../lib/clipboard.js';
+import { parseMarketExpressionPricing } from '../lib/model-marketplace-expression.js';
 import { formatQuotaDisplay } from '../lib/usage-format.js';
 import { configuredGroupRatio, estimatedGroupCredit, filterMarketModels, marketGroupVendors, marketPriceDisplay } from '../lib/model-marketplace.js';
 import './model-marketplace.css';
@@ -117,9 +118,10 @@ export default function ModelMarketplace({ models, groups, catalog, quota, userG
         <div className="mp-toolbar"><label className="mp-search"><Search size={15} /><input aria-label={t("搜索模型")} placeholder={t("搜索模型")} value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button aria-label={t("清除搜索")} onClick={() => setSearch('')}><X size={13} /></button>}</label><span className="mp-model-count">{t("{count} 个模型", { count: visible.length })}</span><div className="mp-view-toggle" role="group" aria-label={t("模型展示方式")}><button className={view === 'grid' ? 'selected' : ''} aria-label={t("网格视图")} aria-pressed={view === 'grid'} onClick={() => setView('grid')}><Grid2X2 size={15} /></button><button className={view === 'list' ? 'selected' : ''} aria-label={t("列表视图")} aria-pressed={view === 'list'} onClick={() => setView('list')}><List size={17} /></button></div></div>
         <div className={`mp-models ${view === 'list' ? 'is-list' : ''}`}>
           {visible.map((model) => {
-            const pricing = marketPriceDisplay(model, selectedGroup, status);
+            const expressionPricing = parseMarketExpressionPricing(model.pricing);
+            const pricing = marketPriceDisplay(model, selectedGroup, status, expressionPricing);
             return <article className="mp-model" key={model.name}><div className="mp-model-heading"><span className="mp-model-brand"><VendorIcon name={model.vendorIcon} fallback={model.vendor.slice(0, 1)} size={20} /></span><div className="mp-model-identity"><h3 title={model.name}>{model.name}</h3><span>{model.vendor}</span></div><button className="mp-copy" aria-label={t("复制模型名称 {v0}", { v0: model.name })} title={t("复制模型名称")} onClick={() => copyModel(model.name)}>{copied === model.name ? <Check size={13} /> : <Copy size={13} />}</button></div>
-              <div className="mp-model-pricing">{pricing.mode ? <div className="mp-dynamic-price">{t(pricing.mode)}</div> : <dl>{pricing.items.map(([label, , sale]) => <div key={label}><dt>{t(label)}</dt><dd><strong>{sale}</strong></dd></div>)}</dl>}<span className="mp-price-unit">{t(pricing.unit)}</span></div>
+              <div className="mp-model-pricing">{pricing.mode ? <div className="mp-dynamic-price">{t(pricing.mode)}</div> : <dl>{pricing.items.map(([label, , sale], index) => <div key={`${label}-${index}`}><dt>{t(label)}</dt><dd><strong>{sale}</strong></dd></div>)}</dl>}<span className="mp-price-unit">{t(pricing.unit)}</span>{pricing.note && <span className="mp-price-note">{t(pricing.note)}</span>}</div>
             </article>;
           })}
         </div>

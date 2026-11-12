@@ -107,7 +107,7 @@
 .mp-model-pricing { margin-top: 12px; padding-top: 10px; border-top: 1px solid #f3f3f3; }
 .mp-model-pricing dl > div { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, .6fr); column-gap: 8px; align-items: baseline; min-width: 0; }
 .mp-model-pricing dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 7px; margin: 0; }
-.mp-model-pricing dt { color: var(--mp-muted); font-size: 11px; white-space: nowrap; }
+.mp-model-pricing dt { color: var(--mp-muted); font-size: 11px; white-space: normal; overflow-wrap: anywhere; }
 .mp-model-pricing dd { margin: 0; color: #454d5a; font-family: 'DM Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; overflow-wrap: anywhere; text-align: right; min-width: 0; }
 .mp-model-pricing dd > strong { display: block; overflow-wrap: anywhere; min-width: 0; text-align: right; }
 .mp-model-pricing dd > strong { color: #454d5a; font: inherit; font-weight: 600; }
@@ -119,6 +119,7 @@
 .mp-models.is-list .mp-model-pricing dl { column-gap: 22px; }
 .mp-empty { padding: 45px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--mp-muted); background: #fff; border-radius: 10px; font-size: 12px; }
 .mp-empty strong { font-weight: 500; color: #6c7581; }
+.mp-price-note { display: block; text-align: right; font-size: 9px; line-height: 1.5; color: #9ba2ad; margin-top: 3px; }
 .mp-empty > span { font-size: 11px; }
 .mp-reset { border: 1px solid #edc9b9; border-radius: 6px; color: var(--accent-deep); background: #fff8f3; padding: 6px 12px; font-size: 11px; }
 @media (max-width: 1199px) { .mp-models { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

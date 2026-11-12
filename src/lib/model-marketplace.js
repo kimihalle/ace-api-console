@@ -51,16 +51,71 @@ export function marketGroupVendors(models, group) {
   return [...vendors.values()];
 }
 
-export function marketPriceDisplay(model, group, status) {
+export function marketPriceDisplay(model, group, status, expressionPricing = null) {
   const price = model.pricing;
   const ratio = configuredGroupRatio(model.groupRatios, group);
   const empty = { unit: '每百万 Tokens', items: [['输入', '—', '—'], ['输出', '—', '—'], ['缓存创建', '—', '—'], ['缓存读取', '—', '—']] };
   if (!price || ratio === null || !modelInGroup(model, group)) return empty;
-  if (price.billing_mode && price.billing_mode !== 'ratio') return { mode: '动态计费价格需按规则计算', unit: '动态计费', items: [] };
   const type = status?.quota_display_type || (status?.display_in_currency === false ? 'TOKENS' : 'USD');
   const exchange = finiteNumber(type === 'CNY' ? status?.usd_exchange_rate : type === 'CUSTOM' ? status?.custom_currency_exchange_rate : 1);
   const symbol = type === 'CNY' ? '¥' : type === 'CUSTOM' ? status?.custom_currency_symbol || '¤' : '$';
   const money = (value) => value === null || !Number.isFinite(value) || value < 0 ? '—' : formatMoney(value * (exchange > 0 ? exchange : 1), symbol);
+  if ((price.billing_mode && price.billing_mode !== 'ratio') || expressionPricing) {
+    if (!expressionPricing?.tiers?.length) return { mode: '动态计费价格需按规则计算', unit: '动态计费', items: [] };
+
+    const tokenFields = [
+      ['inputPrice', t('输入')], ['outputPrice', t('输出')], ['cacheCreatePrice', t('缓存创建')],
+      ['cacheReadPrice', t('缓存读取')], ['cacheCreate1hPrice', t('缓存创建（1 小时）')],
+      ['imageCachePrice', t('图像缓存')], ['imagePrice', t('图像输入')], ['imageOutputPrice', t('图像输出')],
+      ['audioInputPrice', t('音频输入')], ['audioOutputPrice', t('音频输出')],
+    ];
+    const items = [];
+    let hasTokenPrice = false;
+    let hasRequestPrice = false;
+    let hasTaskPrice = false;
+    const conditionNames = { p: t('输入 Tokens'), c: t('输出 Tokens'), len: t('上下文长度') };
+
+    for (const entry of expressionPricing.tiers) {
+      const tier = entry.tier;
+      const conditions = tier.conditionText || (tier.conditions || []).map((condition) => `${conditionNames[condition.var] || condition.field} ${condition.op || '='} ${condition.value}`).join(' · ');
+      const descriptor = [entry.sourceLabel, tier.label, conditions].filter(Boolean).join(' · ');
+      if (entry.kind === 'task') {
+        hasTaskPrice = true;
+        for (const [field, definition] of Object.entries(entry.usageSchema || {})) {
+          const amount = finiteNumber(tier.unitPrices?.[field]);
+          if (amount === null || amount < 0) continue;
+          const unitName = ({ second: t('秒'), count: t('次'), token: t('Token'), credit: t('计费单位') })[definition?.unit] || definition?.unit || t('单位');
+          items.push([`${field}（每${unitName}）${descriptor ? ` · ${descriptor}` : ''}`, money(amount), money(amount * ratio)]);
+        }
+        if (finiteNumber(tier.constant) > 0) {
+          items.push([`${t('基础费用')}（${t('每次请求')}）${descriptor ? ` · ${descriptor}` : ''}`, money(tier.constant), money(tier.constant * ratio)]);
+          hasRequestPrice = true;
+        }
+        continue;
+      }
+      if (tier.billingUnit === 'request' && finiteNumber(tier.fixedPrice) !== null) {
+        hasRequestPrice = true;
+        items.push([`${t('请求价格')}（${t('每次请求')}）${descriptor ? ` · ${descriptor}` : ''}`, money(tier.fixedPrice), money(tier.fixedPrice * ratio)]);
+        continue;
+      }
+      for (const [field, label] of tokenFields) {
+        const amount = finiteNumber(tier[field]);
+        if (amount === null || amount < 0) continue;
+        hasTokenPrice = true;
+        items.push([`${label}${descriptor ? ` · ${descriptor}` : ''}`, money(amount), money(amount * ratio)]);
+      }
+    }
+
+    if (!items.length) return { mode: '动态计费价格需按规则计算', unit: '动态计费', items: [] };
+    const unit = hasTaskPrice ? t('任务用量价格（单位见项目）')
+      : hasTokenPrice && hasRequestPrice ? t('价格单位见项目')
+        : hasRequestPrice ? t('每次请求') : t('每百万 Tokens');
+    return {
+      unit,
+      items,
+      ...(expressionPricing.hasRequestRules ? { note: t('展示基础价格，实际费用可能受请求规则影响') } : {}),
+    };
+  }
   if (Number(price.quota_type) === 1) {
     const fixed = finiteNumber(price.model_price);
     return { unit: '每次请求', items: [['请求价格', money(fixed), money(fixed === null ? null : fixed * ratio)]] };
