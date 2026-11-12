@@ -161,7 +161,7 @@ location / {
     proxy_send_timeout 600s;
     proxy_buffering off;
     proxy_cache off;
-    client_max_body_size 32m;
+    client_max_body_size 150m;
 }
 ```
 
