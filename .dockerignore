@@ -1,6 +1,24 @@
 node_modules
 dist
+# The customer frontend reuses the expression parser from the upstream web UI.
+# Include only that small source subtree in this Docker build context.
 new-api-upstream
+!new-api-upstream/
+new-api-upstream/*
+!new-api-upstream/web/
+new-api-upstream/web/*
+!new-api-upstream/web/src/
+new-api-upstream/web/src/*
+!new-api-upstream/web/src/features/
+new-api-upstream/web/src/features/*
+!new-api-upstream/web/src/features/pricing/
+new-api-upstream/web/src/features/pricing/*
+!new-api-upstream/web/src/features/pricing/lib/
+new-api-upstream/web/src/features/pricing/lib/*
+!new-api-upstream/web/src/features/pricing/lib/billing-expr.ts
+!new-api-upstream/web/src/features/pricing/lib/billing-expression/
+new-api-upstream/web/src/features/pricing/lib/billing-expression/*
+!new-api-upstream/web/src/features/pricing/lib/billing-expression/*.ts
 .git
 .env
 .env.*
