@@ -11,14 +11,14 @@ const ImageStudioHistoryLimit = 30
 const ImageStudioHistoryBytesLimit = 128 << 20
 
 type ImageStudioRecord struct {
-	ID         string `json:"id" gorm:"primaryKey;size:64"`
-	UserID     int    `json:"-" gorm:"primaryKey;index:idx_image_studio_user_created,priority:1"`
-	RequestID  string `json:"request_id" gorm:"uniqueIndex;size:64;not null"`
-	Model      string `json:"model" gorm:"size:128;not null"`
-	Prompt     string `json:"prompt" gorm:"type:text;not null"`
-	ImageCount int    `json:"image_count" gorm:"not null"`
-	CreatedAt  int64  `json:"created_at" gorm:"index:idx_image_studio_user_created,priority:2"`
-	Sources    string `json:"-" gorm:"type:text;not null"`
+	ID         string   `json:"id" gorm:"primaryKey;size:64"`
+	UserID     int      `json:"-" gorm:"primaryKey;index:idx_image_studio_user_created,priority:1"`
+	RequestID  string   `json:"request_id" gorm:"uniqueIndex;size:64;not null"`
+	Model      string   `json:"model" gorm:"size:128;not null"`
+	Prompt     string   `json:"prompt" gorm:"type:text;not null"`
+	ImageCount int      `json:"image_count" gorm:"not null"`
+	CreatedAt  int64    `json:"created_at" gorm:"index:idx_image_studio_user_created,priority:2"`
+	Sources    LongText `json:"-" gorm:"not null"`
 }
 
 type ImageStudioRecordInput struct {
@@ -42,7 +42,7 @@ func SaveImageStudioRecord(userID int, input ImageStudioRecordInput, createdAt i
 		Prompt:     input.Prompt,
 		ImageCount: len(input.Sources),
 		CreatedAt:  createdAt,
-		Sources:    string(sources),
+		Sources:    LongText(sources),
 	}
 
 	return DB.Transaction(func(tx *gorm.DB) error {
